@@ -1,0 +1,145 @@
+---
+title: "Difference-in-Differences with Heterogenous Treatment Effects"
+author: Sam Harper
+date: 2023-05-19
+format: 
+  html:
+    code-tools: true
+    code-fold: true
+---
+
+# Setup 
+
+In this document we aim to provide an overview of the issues and methods for evaluating policy impacts in the context of heterogeneous treatments and staggered treatments.
+
+## Simulated data
+
+For this example we will use a simulated example.^[This section borrows heavily from Brantly Callaway's excellent [vignette](https://bcallaway11.github.io/did/articles/TWFE.html) on the dangers of using Two-Way Fixed Effects (TWFE) in the context of staggered treatments.] For the time being, we are ignoring covariates. 
+
+We are simulating a staggered treatment setup where 30 'clusters', which could be countries, villages, states, etc., but in this case we will use states ($state = \{1,2,\dots,30\}$), which are randomly assigned into 3 treatment groups depending on the treatment starting year (2014, 2016, never treated). We denote the treatment starting period as $g$ that encompasses the 3 groups (i.e., $g \in \{ 2014, 2016, \text{-Inf}\}$), where $\text{-Inf}$ indicates the never treated group (following Callaway/Sant'Anna here such that $g = \infty$ for a never-treated group). We have 1000 units spread out over the 30 clusters, which could be individuals, schools, hospitals, or some other smaller units $i$, which are randomly assigned to one of the 30 states. Let $G_i$ indicates the group/cohort unit $i$ belongs to, i.e., $G \subseteq \{ 2014, 2016, \infty\}$.
+
+The data generating process (DGP) for the outcome $Y$ we consider is 
+$$Y_{i,t} = (2020-g) + \alpha_i + \beta_t + \tau_{i,t} + \epsilon_{i,t}$$
+where $\alpha_i$ are unit (i.e., cluster) fixed effects drawn from $\sim N(\mu_{state}, 1)$ with state-specific mean $\mu_{state} = state/10$, $\beta_t$ are time fixed effects (cohort-specific parallel time-trends) generated as $$\beta_t = 0.5 * (t - g) + \epsilon^{time FE}_t, $$ with $\epsilon^{time FE}_t \sim N(0, 1)$, $\epsilon_{i,t} \sim N(0,2)$ is an idiosyncratic error term. The $\tau_{i,t}$ are the (instantaneous) unit-specific treatment effects at time $t$ generated as 
+$$ \tau_{i,t} = \mu_g \times (t - g + 1)\times 1\{t \ge g \}1\{g\not=\infty \},$$
+where $t$ and $g$ are defined as above and $1\{\}$ is a logical operator. We set $\mu_{2014} = 2$, and $\mu_{2016} = 1$. 
+
+So, for example, in 2014 when $G_{2014}$ is first treated, $(t - g + 1)=1$ and the treatment effect is 2. This setup implies heterogeneity: for the group that started treatment in 2014, its average treatment effects evolves with time since first treatment as $2,4,6,\dots$. For the group that started treatment in 2016 the average treatment effect evolves with elapsed time as $1,2,3,\dots$. The treatment effect is zero for the "never-treated" cohort ($g=\infty$). In this case the early-treated group ($g=2014$) benefits more than the later treated group.
+
+Given that each group has same size (on average), the true average treatment effect dynamic across treated groups is $(2+1)/2 = 1.5$ at the time a unit is treated, $2 \times (2+1)/2 = 3$ in the first period after treatment started, etc.
+
+```{r sim, cache=TRUE, message=FALSE}
+#| code-fold: true
+
+library(tidyverse)
+
+# unit fixed effects (unobserved heterogeneity)
+unit <- tibble(
+  unit = 1:1000,
+  # generate clusters
+  state = sample(1:30, 1000, replace = TRUE),
+  unit_fe = rnorm(1000, state/10, 1),
+  # generate instantaneous treatment effect
+  #mu = rnorm(nobs, true_mu, 0.2)
+  mu = 2
+)
+
+# year fixed effects (first part)
+year <- tibble(
+  year = 2011:2020,
+  year_fe = rnorm(length(year), 0, 1)
+)
+
+# Put the clusters into treatment groups
+treat_taus <- tibble(
+  # sample the clusters randomly
+  state = sample(1:30, 30, replace = FALSE),
+  # place the randomly sampled states into 1\{t \ge g \}G_g
+  cohort_year = sort(rep(c(2014, 2016, 2018), 10))
+)
+
+# make main dataset
+# full interaction of unit X year 
+d <- expand_grid(unit = 1:1000, year = 2011:2020) %>% 
+  left_join(., unit) %>% 
+  left_join(., year) %>% 
+  left_join(., treat_taus) %>% 
+  # make error term and get treatment indicators and treatment effects
+  # Also get cohort specific trends (modify time FE)
+  mutate(error = rnorm(1000*10, 0, 2),
+         treat = ifelse((year >= 
+           cohort_year)*(cohort_year != 2018), 1, 0),
+         # treatment effect = 1 if 2016, 2 if 2014, annually
+         mu = ifelse(cohort_year==2016, 1, 2),
+         tau = ifelse(treat == 1, mu, 0),
+         year_fe = year_fe + 0.5*(year - cohort_year)
+  ) %>% 
+  # calculate cumulative treatment effects
+  group_by(unit) %>% 
+  mutate(tau_cum = cumsum(tau)) %>% 
+  ungroup() %>% 
+  # calculate the dependent variable
+  mutate(y = (2020 - cohort_year) + 
+           unit_fe + year_fe + tau_cum + error) %>%
+  # Relabel 2018 cohort as never-treated
+  mutate(cohort_year = ifelse(cohort_year == 2018, Inf, cohort_year))
+```
+
+The first few rows of the table are shown below:
+```{r simtab, results = 'asis', cache=TRUE}
+library(kableExtra)
+kable(d[1:10, ], caption = "Simulated data", digits = 3) %>%
+  kable_styling()
+```
+
+
+## Plot of simulated data
+Below we show the evolution of $y$ over time for the 3 treatment groups (2014, 2016, untreated). The vertical lines indicate the time of treatment, i.e. $g=t$ for each treated group, and the bold lines show the average evolution of the outcome for each treatment group.
+
+```{r plotsim, cache=TRUE, message=FALSE}
+#| code-fold: true
+
+theme_set(theme_classic() + 
+            theme(plot.background = element_blank()))
+
+plot <- d %>% 
+  ggplot(aes(x = year, y = y, group = unit)) + 
+  geom_line(alpha = 1/8, color = "grey") + 
+  geom_line(data = d %>% 
+    group_by(cohort_year, year) %>% 
+    summarize(y = mean(y)),
+   aes(x = year, y = y, group = factor(cohort_year),
+    color = factor(cohort_year)), linewidth = 2) + 
+  labs(x = "", y = "Y",  color = "Treatment group   ") +
+  scale_x_continuous(breaks = c(2012, 2014, 2016, 2018, 2020)) +
+  geom_vline(xintercept = 2014, color = '#E41A1C', linewidth = 2) + 
+  geom_vline(xintercept = 2016, color = '#377EB8', linewidth = 2) + 
+  scale_color_brewer(palette = 'Set1') + 
+  theme(legend.position = 'bottom',
+        #legend.title = element_blank(), 
+        axis.title = element_text(size = 14),
+        axis.text = element_text(size = 12)) +
+  scale_color_manual(labels = c("2014", "2016", "Never-treated"),
+                     values = c("#E41A1C", "#377EB8", "#4DAF4A")) +
+  ggtitle("Simulated data with heterogeneous treatment effect dynamics across cohorts \n and with a never-treated group")+
+  theme(plot.title = element_text(hjust = 0.5, size=12))
+
+plot 
+```
+
+# Estimating treatment effects
+Next we show various ways of estimating the treatment effects, starting with the standard two-way fixed effects (TWFE) that has been standard in many diff-in-diffs analyses. The basic model is estimated as:
+
+$$Y_{i,t} = \alpha_i + \beta_t + \gamma D_{i,t} + \varepsilon_{i,t}$$ 
+where $D_{i,t}$ is a time-varying treatment dummy variable that takes value one if a unit $i$ is treated at time $t$, and $\alpha_{i}$ and $\beta_{t}$ are fixed effects for unit and time, respectively. We implement this below using the `fixest` package and cluster the standard errors at the state level. 
+
+
+```{r est, cache=TRUE, message=FALSE}
+#| code-fold: true
+
+library(fixest)
+library(modelsummary)
+library(marginaleffects)
+library(did)
+```
+
