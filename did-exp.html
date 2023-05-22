@@ -2,7 +2,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
 
 <meta charset="utf-8">
-<meta name="generator" content="quarto-1.2.269">
+<meta name="generator" content="quarto-1.2.280">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
@@ -146,11 +146,6 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <p>In this document we aim to provide an overview of the issues and methods for evaluating policy impacts in the context of heterogeneous treatments and staggered treatments.</p>
 <section id="simulated-data" class="level2">
 <h2 class="anchored" data-anchor-id="simulated-data">Simulated data</h2>
-<p>For this example we will use a simulated example.<a href="#fn1" class="footnote-ref" id="fnref1" role="doc-noteref"><sup>1</sup></a> For the time being, we are ignoring covariates.</p>
-<p>We are simulating a staggered treatment setup where 30 ‘clusters’, which could be countries, villages, states, etc., but in this case we will use states (<span class="math inline">\(state = \{1,2,\dots,30\}\)</span>), which are randomly assigned into 3 treatment groups depending on the treatment starting year (2014, 2016, never treated). We denote the treatment starting period as <span class="math inline">\(g\)</span> that encompasses the 3 groups (i.e., <span class="math inline">\(g \in \{ 2014, 2016, \text{-Inf}\}\)</span>), where <span class="math inline">\(\text{-Inf}\)</span> indicates the never treated group (following Callaway/Sant’Anna here such that <span class="math inline">\(g = \infty\)</span> for a never-treated group). We have 1000 units spread out over the 30 clusters, which could be individuals, schools, hospitals, or some other smaller units <span class="math inline">\(i\)</span>, which are randomly assigned to one of the 30 states. Let <span class="math inline">\(G_i\)</span> indicates the group/cohort unit <span class="math inline">\(i\)</span> belongs to, i.e., <span class="math inline">\(G \subseteq \{ 2014, 2016, \infty\}\)</span>.</p>
-<p>The data generating process (DGP) for the outcome <span class="math inline">\(Y\)</span> we consider is <span class="math display">\[Y_{i,t} = (2020-g) + \alpha_i + \beta_t + \tau_{i,t} + \epsilon_{i,t}\]</span> where <span class="math inline">\(\alpha_i\)</span> are unit (i.e., cluster) fixed effects drawn from <span class="math inline">\(\sim N(\mu_{state}, 1)\)</span> with state-specific mean <span class="math inline">\(\mu_{state} = state/10\)</span>, <span class="math inline">\(\beta_t\)</span> are time fixed effects (cohort-specific parallel time-trends) generated as <span class="math display">\[\beta_t = 0.5 * (t - g) + \epsilon^{time FE}_t, \]</span> with <span class="math inline">\(\epsilon^{time FE}_t \sim N(0, 1)\)</span>, <span class="math inline">\(\epsilon_{i,t} \sim N(0,2)\)</span> is an idiosyncratic error term. The <span class="math inline">\(\tau_{i,t}\)</span> are the (instantaneous) unit-specific treatment effects at time <span class="math inline">\(t\)</span> generated as <span class="math display">\[ \tau_{i,t} = \mu_g \times (t - g + 1)\times 1\{t \ge g \}1\{g\not=\infty \},\]</span> where <span class="math inline">\(t\)</span> and <span class="math inline">\(g\)</span> are defined as above and <span class="math inline">\(1\{\}\)</span> is a logical operator. We set <span class="math inline">\(\mu_{2014} = 2\)</span>, and <span class="math inline">\(\mu_{2016} = 1\)</span>.</p>
-<p>So, for example, in 2014 when <span class="math inline">\(G_{2014}\)</span> is first treated, <span class="math inline">\((t - g + 1)=1\)</span> and the treatment effect is 2. This setup implies heterogeneity: for the group that started treatment in 2014, its average treatment effects evolves with time since first treatment as <span class="math inline">\(2,4,6,\dots\)</span>. For the group that started treatment in 2016 the average treatment effect evolves with elapsed time as <span class="math inline">\(1,2,3,\dots\)</span>. The treatment effect is zero for the “never-treated” cohort (<span class="math inline">\(g=\infty\)</span>). In this case the early-treated group (<span class="math inline">\(g=2014\)</span>) benefits more than the later treated group.</p>
-<p>Given that each group has same size (on average), the true average treatment effect dynamic across treated groups is <span class="math inline">\((2+1)/2 = 1.5\)</span> at the time a unit is treated, <span class="math inline">\(2 \times (2+1)/2 = 3\)</span> in the first period after treatment started, etc.</p>
 <div class="cell" data-hash="did-exp_cache/html/sim_be3bfc11dd3ab3b2f0e1de872c2c7b23">
 <details>
 <summary>Code</summary>
@@ -208,18 +203,24 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <span id="cb1-52"><a href="#cb1-52" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">cohort_year =</span> <span class="fu">ifelse</span>(cohort_year <span class="sc">==</span> <span class="dv">2018</span>, <span class="cn">Inf</span>, cohort_year))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 </div>
-<p>The first few rows of the table are shown below:</p>
-<div class="cell" data-hash="did-exp_cache/html/simtab_bc5db4a19b09932b87868c6a4aa5764f">
+<p>For this example we will use a simulated example.<a href="#fn1" class="footnote-ref" id="fnref1" role="doc-noteref"><sup>1</sup></a> For the time being, we are ignoring covariates.</p>
+<p>We are simulating a staggered treatment setup where 30 ‘clusters’, which could be countries, villages, states, etc., but in this case we will use states (<span class="math inline">\(state = \{1,2,\dots,30\}\)</span>), which are randomly assigned into 3 treatment groups depending on the treatment starting year (2014, 2016, never treated). We denote the treatment starting period as <span class="math inline">\(g\)</span> that encompasses the 3 groups (i.e., <span class="math inline">\(g \in \{ 2014, 2016, \text{-Inf}\}\)</span>), where <span class="math inline">\(\text{-Inf}\)</span> indicates the never treated group (following Callaway/Sant’Anna here such that <span class="math inline">\(g = \infty\)</span> for a never-treated group). We have 1000 units spread out over the 30 clusters, which could be individuals, schools, hospitals, or some other smaller units <span class="math inline">\(i\)</span>, which are randomly assigned to one of the 30 states. Let <span class="math inline">\(G_i\)</span> indicates the group/cohort unit <span class="math inline">\(i\)</span> belongs to, i.e., <span class="math inline">\(G \subseteq \{ 2014, 2016, \infty\}\)</span>.</p>
+<p>The data generating process (DGP) for the outcome <span class="math inline">\(Y\)</span> is: <span class="math display">\[Y_{it} = (2020-g) + \alpha_i + \beta_t + \tau_{it} + \epsilon_{it}\]</span> where <span class="math inline">\(\alpha_i\)</span> are unit (i.e., cluster) fixed effects drawn from <span class="math inline">\(\sim N(\mu_{state}, 1)\)</span> with state-specific mean <span class="math inline">\(\mu_{state} = state/10\)</span>, <span class="math inline">\(\beta_t\)</span> are time fixed effects (cohort-specific parallel time-trends) generated as <span class="math display">\[\beta_t = 0.5 * (t - g) + \epsilon^{time FE}_t, \]</span> with <span class="math inline">\(\epsilon^{time FE}_t \sim N(0, 1)\)</span>, <span class="math inline">\(\epsilon_{i,t} \sim N(0,2)\)</span> is an idiosyncratic error term. The <span class="math inline">\(\tau_{i,t}\)</span> are the (instantaneous) unit-specific treatment effects at time <span class="math inline">\(t\)</span> generated as <span class="math display">\[ \tau_{it} = \mu_g \times (t - g + 1)\times 1\{t \ge g \}1\{g\not=\infty \},\]</span> where <span class="math inline">\(t\)</span> and <span class="math inline">\(g\)</span> are defined as above and <span class="math inline">\(1\{\}\)</span> is a logical operator. We set <span class="math inline">\(\mu_{2014} = 2\)</span>, and <span class="math inline">\(\mu_{2016} = 1\)</span>.</p>
+<p>So, for example, in 2014 when <span class="math inline">\(G_{2014}\)</span> is first treated, <span class="math inline">\((t - g + 1)=1\)</span> and the treatment effect is 2. This setup implies heterogeneity: for the group that started treatment in 2014, its average treatment effects evolves with time since first treatment as <span class="math inline">\(2,4,6,\dots\)</span>. For the group that started treatment in 2016 the average treatment effect evolves with elapsed time as <span class="math inline">\(1,2,3,\dots\)</span>. The treatment effect is zero for the “never-treated” cohort (<span class="math inline">\(g=\infty\)</span>). In this case the early-treated group (<span class="math inline">\(g=2014\)</span>) benefits more than the later treated group.</p>
+<p>Given that each group has same size (on average), the true average treatment effect dynamic across treated groups is <span class="math inline">\((2+1)/2 = 1.5\)</span> at the time a unit is treated, <span class="math inline">\(2 \times (2+1)/2 = 3\)</span> in the first period after treatment started, etc.</p>
+<p>A random sample of 10 rows of the data are shown below:</p>
+<div class="cell" data-hash="did-exp_cache/html/simtab_32d3abe38d717d7d4444d1c83c8fc52a">
 <details>
 <summary>Code</summary>
 <div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(kableExtra)</span>
-<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="fu">kable</span>(d[<span class="dv">1</span><span class="sc">:</span><span class="dv">10</span>, ], <span class="at">caption =</span> <span class="st">"Simulated data"</span>, <span class="at">digits =</span> <span class="dv">3</span>) <span class="sc">%&gt;%</span></span>
-<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">kable_styling</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>ds <span class="ot">&lt;-</span> <span class="fu">sample_n</span>(d,<span class="dv">10</span>)</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="fu">kable</span>(ds, <span class="at">caption =</span> <span class="st">"10 rows of simulated data"</span>, <span class="at">digits =</span> <span class="dv">3</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">kable_styling</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 <div class="cell-output-display">
 
 <table class="table" style="margin-left: auto; margin-right: auto;">
-<caption>Simulated data</caption>
+<caption>10 rows of simulated data</caption>
  <thead>
   <tr>
    <th style="text-align:right;"> unit </th>
@@ -238,144 +239,144 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
  </thead>
 <tbody>
   <tr>
-   <td style="text-align:right;"> 1 </td>
-   <td style="text-align:right;"> 2011 </td>
+   <td style="text-align:right;"> 59 </td>
+   <td style="text-align:right;"> 2020 </td>
+   <td style="text-align:right;"> 8 </td>
+   <td style="text-align:right;"> 1.424 </td>
    <td style="text-align:right;"> 2 </td>
-   <td style="text-align:right;"> 0.047 </td>
-   <td style="text-align:right;"> 1 </td>
-   <td style="text-align:right;"> 0.837 </td>
-   <td style="text-align:right;"> 2016 </td>
-   <td style="text-align:right;"> -4.904 </td>
+   <td style="text-align:right;"> 0.121 </td>
+   <td style="text-align:right;"> Inf </td>
+   <td style="text-align:right;"> -2.081 </td>
    <td style="text-align:right;"> 0 </td>
    <td style="text-align:right;"> 0 </td>
    <td style="text-align:right;"> 0 </td>
-   <td style="text-align:right;"> -0.021 </td>
+   <td style="text-align:right;"> 1.464 </td>
   </tr>
   <tr>
-   <td style="text-align:right;"> 1 </td>
-   <td style="text-align:right;"> 2012 </td>
-   <td style="text-align:right;"> 2 </td>
-   <td style="text-align:right;"> 0.047 </td>
-   <td style="text-align:right;"> 1 </td>
-   <td style="text-align:right;"> -1.159 </td>
-   <td style="text-align:right;"> 2016 </td>
-   <td style="text-align:right;"> 1.363 </td>
-   <td style="text-align:right;"> 0 </td>
-   <td style="text-align:right;"> 0 </td>
-   <td style="text-align:right;"> 0 </td>
-   <td style="text-align:right;"> 4.251 </td>
-  </tr>
-  <tr>
-   <td style="text-align:right;"> 1 </td>
-   <td style="text-align:right;"> 2013 </td>
-   <td style="text-align:right;"> 2 </td>
-   <td style="text-align:right;"> 0.047 </td>
-   <td style="text-align:right;"> 1 </td>
-   <td style="text-align:right;"> 1.420 </td>
-   <td style="text-align:right;"> 2016 </td>
-   <td style="text-align:right;"> 3.223 </td>
-   <td style="text-align:right;"> 0 </td>
-   <td style="text-align:right;"> 0 </td>
-   <td style="text-align:right;"> 0 </td>
-   <td style="text-align:right;"> 8.690 </td>
-  </tr>
-  <tr>
-   <td style="text-align:right;"> 1 </td>
-   <td style="text-align:right;"> 2014 </td>
-   <td style="text-align:right;"> 2 </td>
-   <td style="text-align:right;"> 0.047 </td>
-   <td style="text-align:right;"> 1 </td>
-   <td style="text-align:right;"> -0.335 </td>
-   <td style="text-align:right;"> 2016 </td>
-   <td style="text-align:right;"> -0.040 </td>
-   <td style="text-align:right;"> 0 </td>
-   <td style="text-align:right;"> 0 </td>
-   <td style="text-align:right;"> 0 </td>
-   <td style="text-align:right;"> 3.672 </td>
-  </tr>
-  <tr>
-   <td style="text-align:right;"> 1 </td>
-   <td style="text-align:right;"> 2015 </td>
-   <td style="text-align:right;"> 2 </td>
-   <td style="text-align:right;"> 0.047 </td>
-   <td style="text-align:right;"> 1 </td>
-   <td style="text-align:right;"> 1.347 </td>
-   <td style="text-align:right;"> 2016 </td>
-   <td style="text-align:right;"> -2.738 </td>
-   <td style="text-align:right;"> 0 </td>
-   <td style="text-align:right;"> 0 </td>
-   <td style="text-align:right;"> 0 </td>
-   <td style="text-align:right;"> 2.656 </td>
-  </tr>
-  <tr>
-   <td style="text-align:right;"> 1 </td>
-   <td style="text-align:right;"> 2016 </td>
-   <td style="text-align:right;"> 2 </td>
-   <td style="text-align:right;"> 0.047 </td>
-   <td style="text-align:right;"> 1 </td>
-   <td style="text-align:right;"> 0.383 </td>
-   <td style="text-align:right;"> 2016 </td>
-   <td style="text-align:right;"> 1.734 </td>
-   <td style="text-align:right;"> 1 </td>
-   <td style="text-align:right;"> 1 </td>
-   <td style="text-align:right;"> 1 </td>
-   <td style="text-align:right;"> 7.163 </td>
-  </tr>
-  <tr>
-   <td style="text-align:right;"> 1 </td>
-   <td style="text-align:right;"> 2017 </td>
-   <td style="text-align:right;"> 2 </td>
-   <td style="text-align:right;"> 0.047 </td>
-   <td style="text-align:right;"> 1 </td>
-   <td style="text-align:right;"> -0.708 </td>
-   <td style="text-align:right;"> 2016 </td>
-   <td style="text-align:right;"> 2.441 </td>
-   <td style="text-align:right;"> 1 </td>
-   <td style="text-align:right;"> 1 </td>
-   <td style="text-align:right;"> 2 </td>
-   <td style="text-align:right;"> 7.780 </td>
-  </tr>
-  <tr>
-   <td style="text-align:right;"> 1 </td>
+   <td style="text-align:right;"> 501 </td>
    <td style="text-align:right;"> 2018 </td>
-   <td style="text-align:right;"> 2 </td>
-   <td style="text-align:right;"> 0.047 </td>
+   <td style="text-align:right;"> 9 </td>
+   <td style="text-align:right;"> 0.887 </td>
    <td style="text-align:right;"> 1 </td>
-   <td style="text-align:right;"> -0.538 </td>
+   <td style="text-align:right;"> 0.168 </td>
    <td style="text-align:right;"> 2016 </td>
-   <td style="text-align:right;"> -1.374 </td>
+   <td style="text-align:right;"> -2.445 </td>
    <td style="text-align:right;"> 1 </td>
    <td style="text-align:right;"> 1 </td>
    <td style="text-align:right;"> 3 </td>
-   <td style="text-align:right;"> 5.135 </td>
+   <td style="text-align:right;"> 5.610 </td>
   </tr>
   <tr>
+   <td style="text-align:right;"> 807 </td>
+   <td style="text-align:right;"> 2017 </td>
+   <td style="text-align:right;"> 11 </td>
+   <td style="text-align:right;"> -1.600 </td>
    <td style="text-align:right;"> 1 </td>
+   <td style="text-align:right;"> 1.240 </td>
+   <td style="text-align:right;"> 2016 </td>
+   <td style="text-align:right;"> 0.774 </td>
+   <td style="text-align:right;"> 1 </td>
+   <td style="text-align:right;"> 1 </td>
+   <td style="text-align:right;"> 2 </td>
+   <td style="text-align:right;"> 6.414 </td>
+  </tr>
+  <tr>
+   <td style="text-align:right;"> 348 </td>
+   <td style="text-align:right;"> 2013 </td>
+   <td style="text-align:right;"> 16 </td>
+   <td style="text-align:right;"> 0.934 </td>
+   <td style="text-align:right;"> 2 </td>
+   <td style="text-align:right;"> -3.241 </td>
+   <td style="text-align:right;"> Inf </td>
+   <td style="text-align:right;"> -1.346 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> -1.653 </td>
+  </tr>
+  <tr>
+   <td style="text-align:right;"> 562 </td>
    <td style="text-align:right;"> 2019 </td>
+   <td style="text-align:right;"> 26 </td>
+   <td style="text-align:right;"> 2.671 </td>
    <td style="text-align:right;"> 2 </td>
-   <td style="text-align:right;"> 0.047 </td>
+   <td style="text-align:right;"> 3.665 </td>
+   <td style="text-align:right;"> 2014 </td>
+   <td style="text-align:right;"> -4.017 </td>
    <td style="text-align:right;"> 1 </td>
-   <td style="text-align:right;"> 0.013 </td>
-   <td style="text-align:right;"> 2016 </td>
-   <td style="text-align:right;"> -2.427 </td>
-   <td style="text-align:right;"> 1 </td>
-   <td style="text-align:right;"> 1 </td>
-   <td style="text-align:right;"> 4 </td>
-   <td style="text-align:right;"> 5.633 </td>
+   <td style="text-align:right;"> 2 </td>
+   <td style="text-align:right;"> 12 </td>
+   <td style="text-align:right;"> 20.318 </td>
   </tr>
   <tr>
+   <td style="text-align:right;"> 177 </td>
+   <td style="text-align:right;"> 2015 </td>
+   <td style="text-align:right;"> 18 </td>
+   <td style="text-align:right;"> 2.978 </td>
    <td style="text-align:right;"> 1 </td>
-   <td style="text-align:right;"> 2020 </td>
-   <td style="text-align:right;"> 2 </td>
-   <td style="text-align:right;"> 0.047 </td>
-   <td style="text-align:right;"> 1 </td>
-   <td style="text-align:right;"> 0.898 </td>
+   <td style="text-align:right;"> -0.325 </td>
    <td style="text-align:right;"> 2016 </td>
-   <td style="text-align:right;"> -0.277 </td>
+   <td style="text-align:right;"> -2.062 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 4.590 </td>
+  </tr>
+  <tr>
+   <td style="text-align:right;"> 469 </td>
+   <td style="text-align:right;"> 2011 </td>
+   <td style="text-align:right;"> 14 </td>
+   <td style="text-align:right;"> 2.472 </td>
+   <td style="text-align:right;"> 1 </td>
+   <td style="text-align:right;"> -1.927 </td>
+   <td style="text-align:right;"> 2016 </td>
+   <td style="text-align:right;"> -1.186 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 3.359 </td>
+  </tr>
+  <tr>
+   <td style="text-align:right;"> 603 </td>
+   <td style="text-align:right;"> 2020 </td>
+   <td style="text-align:right;"> 5 </td>
+   <td style="text-align:right;"> -0.642 </td>
+   <td style="text-align:right;"> 1 </td>
+   <td style="text-align:right;"> 1.121 </td>
+   <td style="text-align:right;"> 2016 </td>
+   <td style="text-align:right;"> 1.879 </td>
    <td style="text-align:right;"> 1 </td>
    <td style="text-align:right;"> 1 </td>
    <td style="text-align:right;"> 5 </td>
-   <td style="text-align:right;"> 9.668 </td>
+   <td style="text-align:right;"> 11.358 </td>
+  </tr>
+  <tr>
+   <td style="text-align:right;"> 847 </td>
+   <td style="text-align:right;"> 2011 </td>
+   <td style="text-align:right;"> 3 </td>
+   <td style="text-align:right;"> 0.807 </td>
+   <td style="text-align:right;"> 2 </td>
+   <td style="text-align:right;"> -0.927 </td>
+   <td style="text-align:right;"> 2014 </td>
+   <td style="text-align:right;"> -2.090 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 3.790 </td>
+  </tr>
+  <tr>
+   <td style="text-align:right;"> 538 </td>
+   <td style="text-align:right;"> 2017 </td>
+   <td style="text-align:right;"> 11 </td>
+   <td style="text-align:right;"> 0.375 </td>
+   <td style="text-align:right;"> 1 </td>
+   <td style="text-align:right;"> 1.240 </td>
+   <td style="text-align:right;"> 2016 </td>
+   <td style="text-align:right;"> -0.659 </td>
+   <td style="text-align:right;"> 1 </td>
+   <td style="text-align:right;"> 1 </td>
+   <td style="text-align:right;"> 2 </td>
+   <td style="text-align:right;"> 6.957 </td>
   </tr>
 </tbody>
 </table>
@@ -385,7 +386,7 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 </section>
 <section id="plot-of-simulated-data" class="level2">
 <h2 class="anchored" data-anchor-id="plot-of-simulated-data">Plot of simulated data</h2>
-<p>Below we show the evolution of <span class="math inline">\(y\)</span> over time for the 3 treatment groups (2014, 2016, untreated). The vertical lines indicate the time of treatment, i.e.&nbsp;<span class="math inline">\(g=t\)</span> for each treated group.</p>
+<p>Below we show the evolution of <span class="math inline">\(y\)</span> over time for the 3 treatment groups (2014, 2016, untreated). The vertical lines indicate the time of treatment, i.e.&nbsp;<span class="math inline">\(g=t\)</span> for each treated group, and the bold lines show the average evolution of the outcome for each treatment group.</p>
 <div class="cell" data-hash="did-exp_cache/html/plotsim_ff5dff9cc222dbe7c8dc7080a392993c">
 <details>
 <summary>Code</summary>
@@ -420,14 +421,313 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <p><img src="did-exp_files/figure-html/plotsim-1.png" class="img-fluid" width="672"></p>
 </div>
 </div>
-<div class="cell" data-hash="did-exp_cache/html/est_a4c2b84bd7549d51c9b609d1232b5dcf">
+</section>
+</section>
+<section id="estimating-treatment-effects" class="level1">
+<h1>Estimating treatment effects</h1>
+<p>Next we show various ways of estimating the treatment effects, starting with the standard two-way fixed effects (TWFE) that has been standard in many diff-in-diffs analyses.</p>
+<section id="twfe-average" class="level2">
+<h2 class="anchored" data-anchor-id="twfe-average">TWFE (average)</h2>
+<p>The basic model is estimated as:</p>
+<p><span class="math display">\[Y_{it} = \alpha_i + \beta_t + \gamma D_{it} + \varepsilon_{it}\]</span> where <span class="math inline">\(D_{i,t}\)</span> is a time-varying treatment dummy variable that takes value one if a unit <span class="math inline">\(i\)</span> is treated at time <span class="math inline">\(t\)</span>, and <span class="math inline">\(\alpha_{i}\)</span> and <span class="math inline">\(\beta_{t}\)</span> are fixed effects for unit and time, respectively. We implement this below using the <code>fixest</code> package and cluster the standard errors at the state level.</p>
+<div class="cell">
 <details>
 <summary>Code</summary>
 <div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(fixest)</span>
-<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(modelsummary)</span>
-<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(marginaleffects)</span>
-<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(did)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(fastDummies)</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(modelsummary)</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(marginaleffects)</span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(did)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
+</div>
+</section>
+<section id="twfe-dynamic" class="level2">
+<h2 class="anchored" data-anchor-id="twfe-dynamic">TWFE (dynamic)</h2>
+<p>Many analyses using TWFE also typically implement an ‘event study’ type analysis as a robustness check, both to see how the treatment effect may evolve over time in the post period and to see whether there may be some evidence of non-parallel trends in the pre-treatment period. We can implement the event-study type model as: <span class="math display">\[Y_{it} = \alpha_i + \beta_t + \sum_{k\neq-1} \gamma_{k} D_{it} + \varepsilon_{it}\]</span> where <span class="math inline">\(k\)</span> indicates time indicators relative to first treatment (i.e., <span class="math inline">\(k=-2\)</span> means 2 periods prior to treatment) and <span class="math inline">\(\gamma_{k}\)</span> are the coefficients on the relative time indicators. To avoid collinearity we exclude one period, which is typically the period just before first treatment (<span class="math inline">\(k=-1\)</span>).</p>
+<p>Below is a table showing the estimated effects from the TWFE and event-study models:</p>
+<div class="cell" data-hash="did-exp_cache/html/es_606c59b4cc9d94fa3f42fc50b00e47b9">
+<details>
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Estimate TWFE</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>twfe <span class="ot">=</span> fixest<span class="sc">::</span><span class="fu">feols</span>(</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>  y <span class="sc">~</span> treat <span class="sc">|</span> state <span class="sc">+</span> year,</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">data =</span> d,</span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">vcov =</span> <span class="sc">~</span>state</span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a><span class="co"># first make dummy columns for relative time</span></span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>data <span class="ot">&lt;-</span> d <span class="sc">%&gt;%</span> </span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>  <span class="co"># make dummies</span></span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">rel_year =</span> year <span class="sc">-</span> cohort_year) <span class="sc">%&gt;%</span> </span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">dummy_cols</span>(<span class="at">select_columns =</span> <span class="st">"rel_year"</span>) </span>
+<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a><span class="co"># estimate the model</span></span>
+<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a>twfe_event <span class="ot">=</span> fixest<span class="sc">::</span><span class="fu">feols</span>(</span>
+<span id="cb5-16"><a href="#cb5-16" aria-hidden="true" tabindex="-1"></a>  y <span class="sc">~</span> <span class="st">`</span><span class="at">rel_year_-5</span><span class="st">`</span> <span class="sc">+</span> <span class="st">`</span><span class="at">rel_year_-4</span><span class="st">`</span> <span class="sc">+</span> <span class="st">`</span><span class="at">rel_year_-3</span><span class="st">`</span> <span class="sc">+</span> </span>
+<span id="cb5-17"><a href="#cb5-17" aria-hidden="true" tabindex="-1"></a>      <span class="st">`</span><span class="at">rel_year_-2</span><span class="st">`</span> <span class="sc">+</span> <span class="st">`</span><span class="at">rel_year_0</span><span class="st">`</span> <span class="sc">+</span> <span class="st">`</span><span class="at">rel_year_1</span><span class="st">`</span> <span class="sc">+</span> </span>
+<span id="cb5-18"><a href="#cb5-18" aria-hidden="true" tabindex="-1"></a>    <span class="st">`</span><span class="at">rel_year_2</span><span class="st">`</span> <span class="sc">+</span> <span class="st">`</span><span class="at">rel_year_3</span><span class="st">`</span> <span class="sc">+</span> <span class="st">`</span><span class="at">rel_year_4</span><span class="st">`</span> <span class="sc">+</span> </span>
+<span id="cb5-19"><a href="#cb5-19" aria-hidden="true" tabindex="-1"></a>    <span class="st">`</span><span class="at">rel_year_5</span><span class="st">`</span> <span class="sc">|</span> state <span class="sc">+</span> year,</span>
+<span id="cb5-20"><a href="#cb5-20" aria-hidden="true" tabindex="-1"></a>  <span class="at">data =</span> data,</span>
+<span id="cb5-21"><a href="#cb5-21" aria-hidden="true" tabindex="-1"></a>  <span class="at">vcov =</span> <span class="sc">~</span>state</span>
+<span id="cb5-22"><a href="#cb5-22" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb5-23"><a href="#cb5-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-24"><a href="#cb5-24" aria-hidden="true" tabindex="-1"></a>rename_rt <span class="ot">&lt;-</span> <span class="cf">function</span>(old_names) {</span>
+<span id="cb5-25"><a href="#cb5-25" aria-hidden="true" tabindex="-1"></a>  new_names <span class="ot">&lt;-</span> <span class="fu">gsub</span>(<span class="st">"rel_year_"</span>, <span class="st">"Relative time: "</span>, old_names)</span>
+<span id="cb5-26"><a href="#cb5-26" aria-hidden="true" tabindex="-1"></a>  <span class="fu">setNames</span>(new_names, old_names)</span>
+<span id="cb5-27"><a href="#cb5-27" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb5-28"><a href="#cb5-28" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-29"><a href="#cb5-29" aria-hidden="true" tabindex="-1"></a><span class="fu">modelsummary</span>(<span class="fu">list</span>(<span class="st">"TWFE"</span> <span class="ot">=</span> twfe, </span>
+<span id="cb5-30"><a href="#cb5-30" aria-hidden="true" tabindex="-1"></a>  <span class="st">"TWFE:Event study"</span> <span class="ot">=</span> twfe_event),</span>
+<span id="cb5-31"><a href="#cb5-31" aria-hidden="true" tabindex="-1"></a>  <span class="at">coef_rename =</span> rename_rt,</span>
+<span id="cb5-32"><a href="#cb5-32" aria-hidden="true" tabindex="-1"></a>  <span class="at">gof_omit =</span><span class="st">'DF|Deviance|R2|AIC|BIC|Log.Lik|ICC|RMSE'</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output-display">
+
+<table class="table" style="width: auto !important; margin-left: auto; margin-right: auto;">
+ <thead>
+  <tr>
+   <th style="text-align:left;">   </th>
+   <th style="text-align:center;"> TWFE </th>
+   <th style="text-align:center;"> TWFE:Event study </th>
+  </tr>
+ </thead>
+<tbody>
+  <tr>
+   <td style="text-align:left;"> treat </td>
+   <td style="text-align:center;"> 3.543 </td>
+   <td style="text-align:center;">  </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;">  </td>
+   <td style="text-align:center;"> (0.677) </td>
+   <td style="text-align:center;">  </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> Relative time: -5 </td>
+   <td style="text-align:center;">  </td>
+   <td style="text-align:center;"> −0.879 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;">  </td>
+   <td style="text-align:center;">  </td>
+   <td style="text-align:center;"> (0.715) </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> Relative time: -4 </td>
+   <td style="text-align:center;">  </td>
+   <td style="text-align:center;"> −1.492 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;">  </td>
+   <td style="text-align:center;">  </td>
+   <td style="text-align:center;"> (0.446) </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> Relative time: -3 </td>
+   <td style="text-align:center;">  </td>
+   <td style="text-align:center;"> −2.259 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;">  </td>
+   <td style="text-align:center;">  </td>
+   <td style="text-align:center;"> (0.639) </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> Relative time: -2 </td>
+   <td style="text-align:center;">  </td>
+   <td style="text-align:center;"> −3.780 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;">  </td>
+   <td style="text-align:center;">  </td>
+   <td style="text-align:center;"> (0.491) </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> Relative time: 0 </td>
+   <td style="text-align:center;">  </td>
+   <td style="text-align:center;"> −3.247 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;">  </td>
+   <td style="text-align:center;">  </td>
+   <td style="text-align:center;"> (0.443) </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> Relative time: 1 </td>
+   <td style="text-align:center;">  </td>
+   <td style="text-align:center;"> −0.725 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;">  </td>
+   <td style="text-align:center;">  </td>
+   <td style="text-align:center;"> (0.252) </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> Relative time: 2 </td>
+   <td style="text-align:center;">  </td>
+   <td style="text-align:center;"> −0.870 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;">  </td>
+   <td style="text-align:center;">  </td>
+   <td style="text-align:center;"> (0.473) </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> Relative time: 3 </td>
+   <td style="text-align:center;">  </td>
+   <td style="text-align:center;"> 1.693 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;">  </td>
+   <td style="text-align:center;">  </td>
+   <td style="text-align:center;"> (0.181) </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> Relative time: 4 </td>
+   <td style="text-align:center;">  </td>
+   <td style="text-align:center;"> 1.136 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;">  </td>
+   <td style="text-align:center;">  </td>
+   <td style="text-align:center;"> (0.573) </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> Relative time: 5 </td>
+   <td style="text-align:center;">  </td>
+   <td style="text-align:center;"> 6.353 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;box-shadow: 0px 1px">  </td>
+   <td style="text-align:center;box-shadow: 0px 1px">  </td>
+   <td style="text-align:center;box-shadow: 0px 1px"> (0.228) </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> Num.Obs. </td>
+   <td style="text-align:center;"> 10000 </td>
+   <td style="text-align:center;"> 10000 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> Std.Errors </td>
+   <td style="text-align:center;"> by: state </td>
+   <td style="text-align:center;"> by: state </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> FE: state </td>
+   <td style="text-align:center;"> X </td>
+   <td style="text-align:center;"> X </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> FE: year </td>
+   <td style="text-align:center;"> X </td>
+   <td style="text-align:center;"> X </td>
+  </tr>
+</tbody>
+</table>
+
+</div>
+</div>
+<p>How well do the event study coefficients map on to our true estimates from the DGP? Below we show a plot of the true effects based on the simulated data, as well as the estimates from the event study. The answer is: not well. Not only are the TWFE event-study estimate incorrect in the post period, they also suggest some evidence for non-parallel trends in the pre-period. [some text on intuition for this would be helpful here].</p>
+<div class="cell" data-hash="did-exp_cache/html/esp_d0fe7d1e6dd28b05eacbfe6fb3527f93">
+<details>
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="co"># plot of estimates</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>pt <span class="ot">&lt;-</span> <span class="fu">get_estimates</span>(twfe_event) <span class="sc">%&gt;%</span></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(term, estimate, conf.low, conf.high) <span class="sc">%&gt;%</span></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">t =</span> <span class="fu">c</span>(<span class="sc">-</span><span class="dv">5</span><span class="sc">:-</span><span class="dv">2</span>, <span class="dv">0</span><span class="sc">:</span><span class="dv">5</span>)) <span class="sc">%&gt;%</span></span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">bind_rows</span>(<span class="fu">tibble</span>(<span class="at">t =</span> <span class="sc">-</span><span class="dv">1</span>, <span class="at">estimate =</span> <span class="dv">0</span>, </span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>    <span class="at">conf.low =</span> <span class="dv">0</span>, <span class="at">conf.high =</span> <span class="dv">0</span>, <span class="at">term =</span> <span class="st">"rel_year_-1"</span>)) <span class="sc">%&gt;%</span></span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">true_tau =</span> <span class="fu">ifelse</span>(t <span class="sc">&gt;=</span> <span class="dv">0</span>, ((t <span class="sc">+</span> <span class="dv">1</span>) <span class="sc">*</span> <span class="fl">1.5</span> ), <span class="dv">0</span>))</span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>colors <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">"True Effect"</span> <span class="ot">=</span> <span class="st">"red"</span>, <span class="st">"Estimated Effect"</span> <span class="ot">=</span> <span class="st">"blue"</span>)</span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a>plot_es <span class="ot">&lt;-</span> pt <span class="sc">%&gt;%</span></span>
+<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>(<span class="fu">aes</span>(<span class="at">x =</span> t, <span class="at">y =</span> estimate)) <span class="sc">+</span> </span>
+<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a>    <span class="fu">geom_point</span>(<span class="at">color =</span> <span class="st">"blue"</span>, <span class="at">size =</span> <span class="dv">3</span>) <span class="sc">+</span></span>
+<span id="cb6-14"><a href="#cb6-14" aria-hidden="true" tabindex="-1"></a>    <span class="fu">geom_line</span>(<span class="fu">aes</span>(<span class="at">color =</span> <span class="st">'Estimated Effect'</span>), <span class="at">linewidth =</span> <span class="dv">1</span>) <span class="sc">+</span></span>
+<span id="cb6-15"><a href="#cb6-15" aria-hidden="true" tabindex="-1"></a>    <span class="fu">geom_linerange</span>(<span class="fu">aes</span>(<span class="at">ymin =</span> conf.low, <span class="at">ymax =</span> conf.high), </span>
+<span id="cb6-16"><a href="#cb6-16" aria-hidden="true" tabindex="-1"></a>    <span class="at">color =</span> <span class="st">"blue"</span>, <span class="at">linewidth =</span> <span class="dv">2</span>, <span class="at">alpha =</span> <span class="fl">0.3</span>) <span class="sc">+</span></span>
+<span id="cb6-17"><a href="#cb6-17" aria-hidden="true" tabindex="-1"></a>    <span class="fu">geom_line</span>(<span class="fu">aes</span>(<span class="at">x =</span> t, <span class="at">y =</span> true_tau, <span class="at">color =</span> <span class="st">'True Effect'</span>), </span>
+<span id="cb6-18"><a href="#cb6-18" aria-hidden="true" tabindex="-1"></a>              <span class="at">linetype =</span> <span class="st">"dashed"</span>, <span class="at">linewidth =</span> <span class="dv">2</span>) <span class="sc">+</span> </span>
+<span id="cb6-19"><a href="#cb6-19" aria-hidden="true" tabindex="-1"></a>    <span class="fu">geom_hline</span>(<span class="at">yintercept =</span> <span class="dv">0</span>, <span class="at">linetype =</span> <span class="st">"dashed"</span>) <span class="sc">+</span> </span>
+<span id="cb6-20"><a href="#cb6-20" aria-hidden="true" tabindex="-1"></a>    <span class="fu">scale_x_continuous</span>(<span class="at">breaks =</span> <span class="sc">-</span><span class="dv">5</span><span class="sc">:</span><span class="dv">5</span>) <span class="sc">+</span> </span>
+<span id="cb6-21"><a href="#cb6-21" aria-hidden="true" tabindex="-1"></a>    <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Relative Time"</span>, <span class="at">y =</span> <span class="st">"Estimate"</span>) <span class="sc">+</span></span>
+<span id="cb6-22"><a href="#cb6-22" aria-hidden="true" tabindex="-1"></a>    <span class="fu">ggtitle</span>(<span class="st">"TWFE event-study regression estimates"</span>) <span class="sc">+</span></span>
+<span id="cb6-23"><a href="#cb6-23" aria-hidden="true" tabindex="-1"></a>    <span class="fu">scale_color_manual</span>(<span class="at">values =</span> colors) <span class="sc">+</span> <span class="fu">theme_classic</span>() <span class="sc">+</span></span>
+<span id="cb6-24"><a href="#cb6-24" aria-hidden="true" tabindex="-1"></a>    <span class="fu">theme</span>(<span class="at">legend.position =</span> <span class="st">'bottom'</span>,</span>
+<span id="cb6-25"><a href="#cb6-25" aria-hidden="true" tabindex="-1"></a>      <span class="at">legend.title =</span> <span class="fu">element_blank</span>(), </span>
+<span id="cb6-26"><a href="#cb6-26" aria-hidden="true" tabindex="-1"></a>      <span class="at">axis.title =</span> <span class="fu">element_text</span>(<span class="at">size =</span> <span class="dv">14</span>),</span>
+<span id="cb6-27"><a href="#cb6-27" aria-hidden="true" tabindex="-1"></a>      <span class="at">axis.text =</span> <span class="fu">element_text</span>(<span class="at">size =</span> <span class="dv">12</span>),</span>
+<span id="cb6-28"><a href="#cb6-28" aria-hidden="true" tabindex="-1"></a>      <span class="at">plot.title =</span> <span class="fu">element_text</span>(<span class="at">hjust =</span> <span class="fl">0.5</span>, <span class="at">size=</span><span class="dv">12</span>),</span>
+<span id="cb6-29"><a href="#cb6-29" aria-hidden="true" tabindex="-1"></a>      <span class="at">plot.background =</span> <span class="fu">element_blank</span>())</span>
+<span id="cb6-30"><a href="#cb6-30" aria-hidden="true" tabindex="-1"></a>plot_es</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output-display">
+<p><img src="did-exp_files/figure-html/esp-1.png" class="img-fluid" width="672"></p>
+</div>
+</div>
+</section>
+<section id="callaway-santanna" class="level2">
+<h2 class="anchored" data-anchor-id="callaway-santanna">Callaway-Sant’Anna</h2>
+<p>To avoid the problems with the TWFE specification above, we can instead use the approach recently developed by Callaway and Sant’Anna that estimates the average treatment effect on the treated (<span class="math inline">\(ATT\)</span>) for each treated group <span class="math inline">\(g\)</span> at each time <span class="math inline">\(t\)</span>, i.e., <span class="math inline">\(ATT(g,t)\)</span>, where groups are defined according to when they were first treated. The group-time specific estimates of each <span class="math inline">\(ATT(g,t)\)</span> are estimated via regression on <em>subsets</em> of the data for each group and time periods covering pre- and post-intervention, using the following specification:</p>
+<p><span class="math display">\[Y_{it} = \beta_{0}^{gt} + \beta_{1}^{gt}G + \beta_{2}^{gt}T + \beta_{3}^{gt}(G\times T) + \varepsilon^{gt} \]</span></p>
+<p>where <span class="math inline">\(G\)</span> and <span class="math inline">\(T\)</span> refer to indicators for group and time period and <span class="math inline">\(\beta_{3}^{gt}\)</span> is the <span class="math inline">\(ATT(g,t)\)</span> for each group at a given time. Treated groups are compared to not yet treated groups to estimate group-time specific <span class="math inline">\(ATTs\)</span> , which can be combined to estimate the overall effect of the intervention, as well as dynamic treatment effects.</p>
+<div class="cell">
+<details>
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Callaway-Sant'Anna</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>cs <span class="ot">&lt;-</span> did<span class="sc">::</span><span class="fu">att_gt</span>(<span class="at">yname =</span> <span class="st">"y"</span>, </span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>                  <span class="at">tname =</span> <span class="st">"year"</span>,</span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>                  <span class="at">idname =</span> <span class="st">"unit"</span>,</span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>                  <span class="at">gname =</span> <span class="st">"cohort_year"</span>,</span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>                  <span class="at">control_group=</span> <span class="st">"notyettreated"</span>,</span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>                  <span class="at">bstrap =</span> <span class="cn">TRUE</span>,</span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>                  <span class="at">clustervars =</span> <span class="st">"state"</span>,</span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>                  <span class="at">data =</span> d,</span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a>                  <span class="at">print_details =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a>cs_simple <span class="ot">&lt;-</span> did<span class="sc">::</span><span class="fu">aggte</span>(cs, <span class="at">type =</span> <span class="st">"simple"</span>)</span>
+<span id="cb7-13"><a href="#cb7-13" aria-hidden="true" tabindex="-1"></a>cs_event <span class="ot">&lt;-</span> did<span class="sc">::</span><span class="fu">aggte</span>(cs, <span class="at">type =</span> <span class="st">"dynamic"</span>)</span>
+<span id="cb7-14"><a href="#cb7-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-15"><a href="#cb7-15" aria-hidden="true" tabindex="-1"></a><span class="co"># wrangle aggregate ATTs for model summary table</span></span>
+<span id="cb7-16"><a href="#cb7-16" aria-hidden="true" tabindex="-1"></a>ti <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
+<span id="cb7-17"><a href="#cb7-17" aria-hidden="true" tabindex="-1"></a>  <span class="at">term =</span> <span class="st">"treat"</span>,</span>
+<span id="cb7-18"><a href="#cb7-18" aria-hidden="true" tabindex="-1"></a>  <span class="at">estimate =</span> cs_simple<span class="sc">$</span>overall.att,</span>
+<span id="cb7-19"><a href="#cb7-19" aria-hidden="true" tabindex="-1"></a>  <span class="at">std.error =</span> cs_simple<span class="sc">$</span>overall.se)</span>
+<span id="cb7-20"><a href="#cb7-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-21"><a href="#cb7-21" aria-hidden="true" tabindex="-1"></a>gl <span class="ot">&lt;-</span> <span class="fu">data.frame</span>()</span>
+<span id="cb7-22"><a href="#cb7-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-23"><a href="#cb7-23" aria-hidden="true" tabindex="-1"></a>cs_avg <span class="ot">&lt;-</span> <span class="fu">list</span>(<span class="at">tidy =</span> ti, <span class="at">glance =</span> gl)</span>
+<span id="cb7-24"><a href="#cb7-24" aria-hidden="true" tabindex="-1"></a><span class="fu">class</span>(cs_avg) <span class="ot">&lt;-</span> <span class="st">"modelsummary_list"</span></span>
+<span id="cb7-25"><a href="#cb7-25" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-26"><a href="#cb7-26" aria-hidden="true" tabindex="-1"></a><span class="fu">modelsummary</span>(<span class="fu">list</span>(<span class="st">"TWFE"</span> <span class="ot">=</span> twfe, <span class="st">"Callaway"</span> <span class="ot">=</span> cs_avg),</span>
+<span id="cb7-27"><a href="#cb7-27" aria-hidden="true" tabindex="-1"></a>  <span class="at">gof_omit =</span><span class="st">'_*'</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output-display">
+
+<table class="table" style="width: auto !important; margin-left: auto; margin-right: auto;">
+ <thead>
+  <tr>
+   <th style="text-align:left;">   </th>
+   <th style="text-align:center;"> TWFE </th>
+   <th style="text-align:center;"> Callaway </th>
+  </tr>
+ </thead>
+<tbody>
+  <tr>
+   <td style="text-align:left;"> treat </td>
+   <td style="text-align:center;"> 3.543 </td>
+   <td style="text-align:center;"> 5.881 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;">  </td>
+   <td style="text-align:center;"> (0.677) </td>
+   <td style="text-align:center;"> (0.570) </td>
+  </tr>
+</tbody>
+</table>
+
+</div>
 </div>
 <!-- -->
 
@@ -626,143 +926,273 @@ window.document.addEventListener("DOMContentLoaded", function (event) {
   }
 });
 </script><div class="modal fade" id="quarto-embedded-source-code-modal" tabindex="-1" aria-labelledby="quarto-embedded-source-code-modal-label" aria-hidden="true"><div class="modal-dialog modal-dialog-scrollable"><div class="modal-content"><div class="modal-header"><h5 class="modal-title" id="quarto-embedded-source-code-modal-label">Source Code</h5><button class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body"><div class="">
-<div class="sourceCode" id="cb5" data-shortcodes="false"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
-<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="an">title:</span><span class="co"> "Difference-in-Differences with Heterogenous Treatment Effects"</span></span>
-<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="an">author:</span><span class="co"> Sam Harper</span></span>
-<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a><span class="an">date:</span><span class="co"> 2023-05-19</span></span>
-<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a><span class="an">format:</span><span class="co"> </span></span>
-<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a><span class="co">  html:</span></span>
-<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a><span class="co">    code-tools: true</span></span>
-<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a><span class="co">    code-fold: true</span></span>
-<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
-<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a><span class="fu"># Setup </span></span>
-<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a>In this document we aim to provide an overview of the issues and methods for evaluating policy impacts in the context of heterogeneous treatments and staggered treatments.</span>
-<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a><span class="fu">## Simulated data</span></span>
-<span id="cb5-16"><a href="#cb5-16" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-17"><a href="#cb5-17" aria-hidden="true" tabindex="-1"></a>For this example we will use a simulated example.^<span class="co">[</span><span class="ot">This section borrows heavily from Brantly Callaway's excellent [vignette](https://bcallaway11.github.io/did/articles/TWFE.html) on the dangers of using Two-Way Fixed Effects (TWFE) in the context of staggered treatments.</span><span class="co">]</span> For the time being, we are ignoring covariates. </span>
-<span id="cb5-18"><a href="#cb5-18" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-19"><a href="#cb5-19" aria-hidden="true" tabindex="-1"></a>We are simulating a staggered treatment setup where 30 'clusters', which could be countries, villages, states, etc., but in this case we will use states ($state = <span class="sc">\{</span>1,2,\dots,30<span class="sc">\}</span>$), which are randomly assigned into 3 treatment groups depending on the treatment starting year (2014, 2016, never treated). We denote the treatment starting period as $g$ that encompasses the 3 groups (i.e., $g \in <span class="sc">\{</span> 2014, 2016, \text{-Inf}<span class="sc">\}</span>$), where $\text{-Inf}$ indicates the never treated group (following Callaway/Sant'Anna here such that $g = \infty$ for a never-treated group). We have 1000 units spread out over the 30 clusters, which could be individuals, schools, hospitals, or some other smaller units $i$, which are randomly assigned to one of the 30 states. Let $G_i$ indicates the group/cohort unit $i$ belongs to, i.e., $G \subseteq <span class="sc">\{</span> 2014, 2016, \infty<span class="sc">\}</span>$.</span>
-<span id="cb5-20"><a href="#cb5-20" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-21"><a href="#cb5-21" aria-hidden="true" tabindex="-1"></a>The data generating process (DGP) for the outcome $Y$ we consider is </span>
-<span id="cb5-22"><a href="#cb5-22" aria-hidden="true" tabindex="-1"></a>$$Y_{i,t} = (2020-g) + \alpha_i + \beta_t + \tau_{i,t} + \epsilon_{i,t}$$</span>
-<span id="cb5-23"><a href="#cb5-23" aria-hidden="true" tabindex="-1"></a>where $\alpha_i$ are unit (i.e., cluster) fixed effects drawn from $\sim N(\mu_{state}, 1)$ with state-specific mean $\mu_{state} = state/10$, $\beta_t$ are time fixed effects (cohort-specific parallel time-trends) generated as $$\beta_t = 0.5 * (t - g) + \epsilon^{time FE}_t, $$ with $\epsilon^{time FE}_t \sim N(0, 1)$, $\epsilon_{i,t} \sim N(0,2)$ is an idiosyncratic error term. The $\tau_{i,t}$ are the (instantaneous) unit-specific treatment effects at time $t$ generated as </span>
-<span id="cb5-24"><a href="#cb5-24" aria-hidden="true" tabindex="-1"></a>$$ \tau_{i,t} = \mu_g \times (t - g + 1)\times 1<span class="sc">\{</span>t \ge g <span class="sc">\}</span>1<span class="sc">\{</span>g\not=\infty <span class="sc">\}</span>,$$</span>
-<span id="cb5-25"><a href="#cb5-25" aria-hidden="true" tabindex="-1"></a>where $t$ and $g$ are defined as above and $1<span class="sc">\{\}</span>$ is a logical operator. We set $\mu_{2014} = 2$, and $\mu_{2016} = 1$. </span>
-<span id="cb5-26"><a href="#cb5-26" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-27"><a href="#cb5-27" aria-hidden="true" tabindex="-1"></a>So, for example, in 2014 when $G_{2014}$ is first treated, $(t - g + 1)=1$ and the treatment effect is 2. This setup implies heterogeneity: for the group that started treatment in 2014, its average treatment effects evolves with time since first treatment as $2,4,6,\dots$. For the group that started treatment in 2016 the average treatment effect evolves with elapsed time as $1,2,3,\dots$. The treatment effect is zero for the "never-treated" cohort ($g=\infty$). In this case the early-treated group ($g=2014$) benefits more than the later treated group.</span>
-<span id="cb5-28"><a href="#cb5-28" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-29"><a href="#cb5-29" aria-hidden="true" tabindex="-1"></a>Given that each group has same size (on average), the true average treatment effect dynamic across treated groups is $(2+1)/2 = 1.5$ at the time a unit is treated, $2 \times (2+1)/2 = 3$ in the first period after treatment started, etc.</span>
-<span id="cb5-30"><a href="#cb5-30" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-31"><a href="#cb5-31" aria-hidden="true" tabindex="-1"></a><span class="in">```{r sim, cache=TRUE, message=FALSE}</span></span>
-<span id="cb5-32"><a href="#cb5-32" aria-hidden="true" tabindex="-1"></a><span class="co">#| code-fold: true</span></span>
-<span id="cb5-33"><a href="#cb5-33" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-34"><a href="#cb5-34" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(tidyverse)</span>
-<span id="cb5-35"><a href="#cb5-35" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-36"><a href="#cb5-36" aria-hidden="true" tabindex="-1"></a><span class="co"># unit fixed effects (unobserved heterogeneity)</span></span>
-<span id="cb5-37"><a href="#cb5-37" aria-hidden="true" tabindex="-1"></a>unit <span class="ot">&lt;-</span> <span class="fu">tibble</span>(</span>
-<span id="cb5-38"><a href="#cb5-38" aria-hidden="true" tabindex="-1"></a>  <span class="at">unit =</span> <span class="dv">1</span><span class="sc">:</span><span class="dv">1000</span>,</span>
-<span id="cb5-39"><a href="#cb5-39" aria-hidden="true" tabindex="-1"></a>  <span class="co"># generate clusters</span></span>
-<span id="cb5-40"><a href="#cb5-40" aria-hidden="true" tabindex="-1"></a>  <span class="at">state =</span> <span class="fu">sample</span>(<span class="dv">1</span><span class="sc">:</span><span class="dv">30</span>, <span class="dv">1000</span>, <span class="at">replace =</span> <span class="cn">TRUE</span>),</span>
-<span id="cb5-41"><a href="#cb5-41" aria-hidden="true" tabindex="-1"></a>  <span class="at">unit_fe =</span> <span class="fu">rnorm</span>(<span class="dv">1000</span>, state<span class="sc">/</span><span class="dv">10</span>, <span class="dv">1</span>),</span>
-<span id="cb5-42"><a href="#cb5-42" aria-hidden="true" tabindex="-1"></a>  <span class="co"># generate instantaneous treatment effect</span></span>
-<span id="cb5-43"><a href="#cb5-43" aria-hidden="true" tabindex="-1"></a>  <span class="co">#mu = rnorm(nobs, true_mu, 0.2)</span></span>
-<span id="cb5-44"><a href="#cb5-44" aria-hidden="true" tabindex="-1"></a>  <span class="at">mu =</span> <span class="dv">2</span></span>
-<span id="cb5-45"><a href="#cb5-45" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb5-46"><a href="#cb5-46" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-47"><a href="#cb5-47" aria-hidden="true" tabindex="-1"></a><span class="co"># year fixed effects (first part)</span></span>
-<span id="cb5-48"><a href="#cb5-48" aria-hidden="true" tabindex="-1"></a>year <span class="ot">&lt;-</span> <span class="fu">tibble</span>(</span>
-<span id="cb5-49"><a href="#cb5-49" aria-hidden="true" tabindex="-1"></a>  <span class="at">year =</span> <span class="dv">2011</span><span class="sc">:</span><span class="dv">2020</span>,</span>
-<span id="cb5-50"><a href="#cb5-50" aria-hidden="true" tabindex="-1"></a>  <span class="at">year_fe =</span> <span class="fu">rnorm</span>(<span class="fu">length</span>(year), <span class="dv">0</span>, <span class="dv">1</span>)</span>
-<span id="cb5-51"><a href="#cb5-51" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb5-52"><a href="#cb5-52" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-53"><a href="#cb5-53" aria-hidden="true" tabindex="-1"></a><span class="co"># Put the clusters into treatment groups</span></span>
-<span id="cb5-54"><a href="#cb5-54" aria-hidden="true" tabindex="-1"></a>treat_taus <span class="ot">&lt;-</span> <span class="fu">tibble</span>(</span>
-<span id="cb5-55"><a href="#cb5-55" aria-hidden="true" tabindex="-1"></a>  <span class="co"># sample the clusters randomly</span></span>
-<span id="cb5-56"><a href="#cb5-56" aria-hidden="true" tabindex="-1"></a>  <span class="at">state =</span> <span class="fu">sample</span>(<span class="dv">1</span><span class="sc">:</span><span class="dv">30</span>, <span class="dv">30</span>, <span class="at">replace =</span> <span class="cn">FALSE</span>),</span>
-<span id="cb5-57"><a href="#cb5-57" aria-hidden="true" tabindex="-1"></a>  <span class="co"># place the randomly sampled states into 1\{t \ge g \}G_g</span></span>
-<span id="cb5-58"><a href="#cb5-58" aria-hidden="true" tabindex="-1"></a>  <span class="at">cohort_year =</span> <span class="fu">sort</span>(<span class="fu">rep</span>(<span class="fu">c</span>(<span class="dv">2014</span>, <span class="dv">2016</span>, <span class="dv">2018</span>), <span class="dv">10</span>))</span>
-<span id="cb5-59"><a href="#cb5-59" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb5-60"><a href="#cb5-60" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-61"><a href="#cb5-61" aria-hidden="true" tabindex="-1"></a><span class="co"># make main dataset</span></span>
-<span id="cb5-62"><a href="#cb5-62" aria-hidden="true" tabindex="-1"></a><span class="co"># full interaction of unit X year </span></span>
-<span id="cb5-63"><a href="#cb5-63" aria-hidden="true" tabindex="-1"></a>d <span class="ot">&lt;-</span> <span class="fu">expand_grid</span>(<span class="at">unit =</span> <span class="dv">1</span><span class="sc">:</span><span class="dv">1000</span>, <span class="at">year =</span> <span class="dv">2011</span><span class="sc">:</span><span class="dv">2020</span>) <span class="sc">%&gt;%</span> </span>
-<span id="cb5-64"><a href="#cb5-64" aria-hidden="true" tabindex="-1"></a>  <span class="fu">left_join</span>(., unit) <span class="sc">%&gt;%</span> </span>
-<span id="cb5-65"><a href="#cb5-65" aria-hidden="true" tabindex="-1"></a>  <span class="fu">left_join</span>(., year) <span class="sc">%&gt;%</span> </span>
-<span id="cb5-66"><a href="#cb5-66" aria-hidden="true" tabindex="-1"></a>  <span class="fu">left_join</span>(., treat_taus) <span class="sc">%&gt;%</span> </span>
-<span id="cb5-67"><a href="#cb5-67" aria-hidden="true" tabindex="-1"></a>  <span class="co"># make error term and get treatment indicators and treatment effects</span></span>
-<span id="cb5-68"><a href="#cb5-68" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Also get cohort specific trends (modify time FE)</span></span>
-<span id="cb5-69"><a href="#cb5-69" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">error =</span> <span class="fu">rnorm</span>(<span class="dv">1000</span><span class="sc">*</span><span class="dv">10</span>, <span class="dv">0</span>, <span class="dv">2</span>),</span>
-<span id="cb5-70"><a href="#cb5-70" aria-hidden="true" tabindex="-1"></a>         <span class="at">treat =</span> <span class="fu">ifelse</span>((year <span class="sc">&gt;=</span> </span>
-<span id="cb5-71"><a href="#cb5-71" aria-hidden="true" tabindex="-1"></a>           cohort_year)<span class="sc">*</span>(cohort_year <span class="sc">!=</span> <span class="dv">2018</span>), <span class="dv">1</span>, <span class="dv">0</span>),</span>
-<span id="cb5-72"><a href="#cb5-72" aria-hidden="true" tabindex="-1"></a>         <span class="co"># treatment effect = 1 if 2016, 2 if 2014, annually</span></span>
-<span id="cb5-73"><a href="#cb5-73" aria-hidden="true" tabindex="-1"></a>         <span class="at">mu =</span> <span class="fu">ifelse</span>(cohort_year<span class="sc">==</span><span class="dv">2016</span>, <span class="dv">1</span>, <span class="dv">2</span>),</span>
-<span id="cb5-74"><a href="#cb5-74" aria-hidden="true" tabindex="-1"></a>         <span class="at">tau =</span> <span class="fu">ifelse</span>(treat <span class="sc">==</span> <span class="dv">1</span>, mu, <span class="dv">0</span>),</span>
-<span id="cb5-75"><a href="#cb5-75" aria-hidden="true" tabindex="-1"></a>         <span class="at">year_fe =</span> year_fe <span class="sc">+</span> <span class="fl">0.5</span><span class="sc">*</span>(year <span class="sc">-</span> cohort_year)</span>
-<span id="cb5-76"><a href="#cb5-76" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">%&gt;%</span> </span>
-<span id="cb5-77"><a href="#cb5-77" aria-hidden="true" tabindex="-1"></a>  <span class="co"># calculate cumulative treatment effects</span></span>
-<span id="cb5-78"><a href="#cb5-78" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(unit) <span class="sc">%&gt;%</span> </span>
-<span id="cb5-79"><a href="#cb5-79" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">tau_cum =</span> <span class="fu">cumsum</span>(tau)) <span class="sc">%&gt;%</span> </span>
-<span id="cb5-80"><a href="#cb5-80" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ungroup</span>() <span class="sc">%&gt;%</span> </span>
-<span id="cb5-81"><a href="#cb5-81" aria-hidden="true" tabindex="-1"></a>  <span class="co"># calculate the dependent variable</span></span>
-<span id="cb5-82"><a href="#cb5-82" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">y =</span> (<span class="dv">2020</span> <span class="sc">-</span> cohort_year) <span class="sc">+</span> </span>
-<span id="cb5-83"><a href="#cb5-83" aria-hidden="true" tabindex="-1"></a>           unit_fe <span class="sc">+</span> year_fe <span class="sc">+</span> tau_cum <span class="sc">+</span> error) <span class="sc">%&gt;%</span></span>
-<span id="cb5-84"><a href="#cb5-84" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Relabel 2018 cohort as never-treated</span></span>
-<span id="cb5-85"><a href="#cb5-85" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">cohort_year =</span> <span class="fu">ifelse</span>(cohort_year <span class="sc">==</span> <span class="dv">2018</span>, <span class="cn">Inf</span>, cohort_year))</span>
-<span id="cb5-86"><a href="#cb5-86" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb5-87"><a href="#cb5-87" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-88"><a href="#cb5-88" aria-hidden="true" tabindex="-1"></a>The first few rows of the table are shown below:</span>
-<span id="cb5-89"><a href="#cb5-89" aria-hidden="true" tabindex="-1"></a><span class="in">```{r simtab, results = 'asis', cache=TRUE}</span></span>
-<span id="cb5-90"><a href="#cb5-90" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(kableExtra)</span>
-<span id="cb5-91"><a href="#cb5-91" aria-hidden="true" tabindex="-1"></a><span class="fu">kable</span>(d[<span class="dv">1</span><span class="sc">:</span><span class="dv">10</span>, ], <span class="at">caption =</span> <span class="st">"Simulated data"</span>, <span class="at">digits =</span> <span class="dv">3</span>) <span class="sc">%&gt;%</span></span>
-<span id="cb5-92"><a href="#cb5-92" aria-hidden="true" tabindex="-1"></a>  <span class="fu">kable_styling</span>()</span>
-<span id="cb5-93"><a href="#cb5-93" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb5-94"><a href="#cb5-94" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-95"><a href="#cb5-95" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-96"><a href="#cb5-96" aria-hidden="true" tabindex="-1"></a><span class="fu">## Plot of simulated data</span></span>
-<span id="cb5-97"><a href="#cb5-97" aria-hidden="true" tabindex="-1"></a>Below we show the evolution of $y$ over time for the 3 treatment groups (2014, 2016, untreated). The vertical lines indicate the time of treatment, i.e. $g=t$ for each treated group.</span>
-<span id="cb5-98"><a href="#cb5-98" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-99"><a href="#cb5-99" aria-hidden="true" tabindex="-1"></a><span class="in">```{r plotsim, cache=TRUE, message=FALSE}</span></span>
-<span id="cb5-100"><a href="#cb5-100" aria-hidden="true" tabindex="-1"></a><span class="co">#| code-fold: true</span></span>
-<span id="cb5-101"><a href="#cb5-101" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-102"><a href="#cb5-102" aria-hidden="true" tabindex="-1"></a><span class="fu">theme_set</span>(<span class="fu">theme_classic</span>() <span class="sc">+</span> </span>
-<span id="cb5-103"><a href="#cb5-103" aria-hidden="true" tabindex="-1"></a>            <span class="fu">theme</span>(<span class="at">plot.background =</span> <span class="fu">element_blank</span>()))</span>
-<span id="cb5-104"><a href="#cb5-104" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-105"><a href="#cb5-105" aria-hidden="true" tabindex="-1"></a>plot <span class="ot">&lt;-</span> d <span class="sc">%&gt;%</span> </span>
-<span id="cb5-106"><a href="#cb5-106" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>(<span class="fu">aes</span>(<span class="at">x =</span> year, <span class="at">y =</span> y, <span class="at">group =</span> unit)) <span class="sc">+</span> </span>
-<span id="cb5-107"><a href="#cb5-107" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>(<span class="at">alpha =</span> <span class="dv">1</span><span class="sc">/</span><span class="dv">8</span>, <span class="at">color =</span> <span class="st">"grey"</span>) <span class="sc">+</span> </span>
-<span id="cb5-108"><a href="#cb5-108" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>(<span class="at">data =</span> d <span class="sc">%&gt;%</span> </span>
-<span id="cb5-109"><a href="#cb5-109" aria-hidden="true" tabindex="-1"></a>    <span class="fu">group_by</span>(cohort_year, year) <span class="sc">%&gt;%</span> </span>
-<span id="cb5-110"><a href="#cb5-110" aria-hidden="true" tabindex="-1"></a>    <span class="fu">summarize</span>(<span class="at">y =</span> <span class="fu">mean</span>(y)),</span>
-<span id="cb5-111"><a href="#cb5-111" aria-hidden="true" tabindex="-1"></a>   <span class="fu">aes</span>(<span class="at">x =</span> year, <span class="at">y =</span> y, <span class="at">group =</span> <span class="fu">factor</span>(cohort_year),</span>
-<span id="cb5-112"><a href="#cb5-112" aria-hidden="true" tabindex="-1"></a>    <span class="at">color =</span> <span class="fu">factor</span>(cohort_year)), <span class="at">linewidth =</span> <span class="dv">2</span>) <span class="sc">+</span> </span>
-<span id="cb5-113"><a href="#cb5-113" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">""</span>, <span class="at">y =</span> <span class="st">"Y"</span>,  <span class="at">color =</span> <span class="st">"Treatment group   "</span>) <span class="sc">+</span></span>
-<span id="cb5-114"><a href="#cb5-114" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_x_continuous</span>(<span class="at">breaks =</span> <span class="fu">c</span>(<span class="dv">2012</span>, <span class="dv">2014</span>, <span class="dv">2016</span>, <span class="dv">2018</span>, <span class="dv">2020</span>)) <span class="sc">+</span></span>
-<span id="cb5-115"><a href="#cb5-115" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_vline</span>(<span class="at">xintercept =</span> <span class="dv">2014</span>, <span class="at">color =</span> <span class="st">'#E41A1C'</span>, <span class="at">linewidth =</span> <span class="dv">2</span>) <span class="sc">+</span> </span>
-<span id="cb5-116"><a href="#cb5-116" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_vline</span>(<span class="at">xintercept =</span> <span class="dv">2016</span>, <span class="at">color =</span> <span class="st">'#377EB8'</span>, <span class="at">linewidth =</span> <span class="dv">2</span>) <span class="sc">+</span> </span>
-<span id="cb5-117"><a href="#cb5-117" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_color_brewer</span>(<span class="at">palette =</span> <span class="st">'Set1'</span>) <span class="sc">+</span> </span>
-<span id="cb5-118"><a href="#cb5-118" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(<span class="at">legend.position =</span> <span class="st">'bottom'</span>,</span>
-<span id="cb5-119"><a href="#cb5-119" aria-hidden="true" tabindex="-1"></a>        <span class="co">#legend.title = element_blank(), </span></span>
-<span id="cb5-120"><a href="#cb5-120" aria-hidden="true" tabindex="-1"></a>        <span class="at">axis.title =</span> <span class="fu">element_text</span>(<span class="at">size =</span> <span class="dv">14</span>),</span>
-<span id="cb5-121"><a href="#cb5-121" aria-hidden="true" tabindex="-1"></a>        <span class="at">axis.text =</span> <span class="fu">element_text</span>(<span class="at">size =</span> <span class="dv">12</span>)) <span class="sc">+</span></span>
-<span id="cb5-122"><a href="#cb5-122" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_color_manual</span>(<span class="at">labels =</span> <span class="fu">c</span>(<span class="st">"2014"</span>, <span class="st">"2016"</span>, <span class="st">"Never-treated"</span>),</span>
-<span id="cb5-123"><a href="#cb5-123" aria-hidden="true" tabindex="-1"></a>                     <span class="at">values =</span> <span class="fu">c</span>(<span class="st">"#E41A1C"</span>, <span class="st">"#377EB8"</span>, <span class="st">"#4DAF4A"</span>)) <span class="sc">+</span></span>
-<span id="cb5-124"><a href="#cb5-124" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggtitle</span>(<span class="st">"Simulated data with heterogeneous treatment effect dynamics across cohorts </span><span class="sc">\n</span><span class="st"> and with a never-treated group"</span>)<span class="sc">+</span></span>
-<span id="cb5-125"><a href="#cb5-125" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(<span class="at">plot.title =</span> <span class="fu">element_text</span>(<span class="at">hjust =</span> <span class="fl">0.5</span>, <span class="at">size=</span><span class="dv">12</span>))</span>
-<span id="cb5-126"><a href="#cb5-126" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-127"><a href="#cb5-127" aria-hidden="true" tabindex="-1"></a>plot </span>
-<span id="cb5-128"><a href="#cb5-128" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb5-129"><a href="#cb5-129" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-130"><a href="#cb5-130" aria-hidden="true" tabindex="-1"></a><span class="in">```{r est, cache=TRUE, message=FALSE}</span></span>
-<span id="cb5-131"><a href="#cb5-131" aria-hidden="true" tabindex="-1"></a><span class="co">#| code-fold: true</span></span>
-<span id="cb5-132"><a href="#cb5-132" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-133"><a href="#cb5-133" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(fixest)</span>
-<span id="cb5-134"><a href="#cb5-134" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(modelsummary)</span>
-<span id="cb5-135"><a href="#cb5-135" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(marginaleffects)</span>
-<span id="cb5-136"><a href="#cb5-136" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(did)</span>
-<span id="cb5-137"><a href="#cb5-137" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode" id="cb8" data-shortcodes="false"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a><span class="an">title:</span><span class="co"> "Difference-in-Differences with Heterogenous Treatment Effects"</span></span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a><span class="an">author:</span><span class="co"> Sam Harper</span></span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a><span class="an">date:</span><span class="co"> 2023-05-19</span></span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a><span class="an">format:</span><span class="co"> </span></span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a><span class="co">  html:</span></span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a><span class="co">    code-tools: true</span></span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a><span class="co">    code-fold: true</span></span>
+<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
+<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a><span class="fu"># Setup </span></span>
+<span id="cb8-12"><a href="#cb8-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-13"><a href="#cb8-13" aria-hidden="true" tabindex="-1"></a>In this document we aim to provide an overview of the issues and methods for evaluating policy impacts in the context of heterogeneous treatments and staggered treatments.</span>
+<span id="cb8-14"><a href="#cb8-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-15"><a href="#cb8-15" aria-hidden="true" tabindex="-1"></a><span class="fu">## Simulated data</span></span>
+<span id="cb8-16"><a href="#cb8-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-17"><a href="#cb8-17" aria-hidden="true" tabindex="-1"></a><span class="in">```{r sim, cache=TRUE, message=FALSE}</span></span>
+<span id="cb8-18"><a href="#cb8-18" aria-hidden="true" tabindex="-1"></a><span class="co">#| code-fold: true</span></span>
+<span id="cb8-19"><a href="#cb8-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-20"><a href="#cb8-20" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(tidyverse)</span>
+<span id="cb8-21"><a href="#cb8-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-22"><a href="#cb8-22" aria-hidden="true" tabindex="-1"></a><span class="co"># unit fixed effects (unobserved heterogeneity)</span></span>
+<span id="cb8-23"><a href="#cb8-23" aria-hidden="true" tabindex="-1"></a>unit <span class="ot">&lt;-</span> <span class="fu">tibble</span>(</span>
+<span id="cb8-24"><a href="#cb8-24" aria-hidden="true" tabindex="-1"></a>  <span class="at">unit =</span> <span class="dv">1</span><span class="sc">:</span><span class="dv">1000</span>,</span>
+<span id="cb8-25"><a href="#cb8-25" aria-hidden="true" tabindex="-1"></a>  <span class="co"># generate clusters</span></span>
+<span id="cb8-26"><a href="#cb8-26" aria-hidden="true" tabindex="-1"></a>  <span class="at">state =</span> <span class="fu">sample</span>(<span class="dv">1</span><span class="sc">:</span><span class="dv">30</span>, <span class="dv">1000</span>, <span class="at">replace =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb8-27"><a href="#cb8-27" aria-hidden="true" tabindex="-1"></a>  <span class="at">unit_fe =</span> <span class="fu">rnorm</span>(<span class="dv">1000</span>, state<span class="sc">/</span><span class="dv">10</span>, <span class="dv">1</span>),</span>
+<span id="cb8-28"><a href="#cb8-28" aria-hidden="true" tabindex="-1"></a>  <span class="co"># generate instantaneous treatment effect</span></span>
+<span id="cb8-29"><a href="#cb8-29" aria-hidden="true" tabindex="-1"></a>  <span class="co">#mu = rnorm(nobs, true_mu, 0.2)</span></span>
+<span id="cb8-30"><a href="#cb8-30" aria-hidden="true" tabindex="-1"></a>  <span class="at">mu =</span> <span class="dv">2</span></span>
+<span id="cb8-31"><a href="#cb8-31" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb8-32"><a href="#cb8-32" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-33"><a href="#cb8-33" aria-hidden="true" tabindex="-1"></a><span class="co"># year fixed effects (first part)</span></span>
+<span id="cb8-34"><a href="#cb8-34" aria-hidden="true" tabindex="-1"></a>year <span class="ot">&lt;-</span> <span class="fu">tibble</span>(</span>
+<span id="cb8-35"><a href="#cb8-35" aria-hidden="true" tabindex="-1"></a>  <span class="at">year =</span> <span class="dv">2011</span><span class="sc">:</span><span class="dv">2020</span>,</span>
+<span id="cb8-36"><a href="#cb8-36" aria-hidden="true" tabindex="-1"></a>  <span class="at">year_fe =</span> <span class="fu">rnorm</span>(<span class="fu">length</span>(year), <span class="dv">0</span>, <span class="dv">1</span>)</span>
+<span id="cb8-37"><a href="#cb8-37" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb8-38"><a href="#cb8-38" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-39"><a href="#cb8-39" aria-hidden="true" tabindex="-1"></a><span class="co"># Put the clusters into treatment groups</span></span>
+<span id="cb8-40"><a href="#cb8-40" aria-hidden="true" tabindex="-1"></a>treat_taus <span class="ot">&lt;-</span> <span class="fu">tibble</span>(</span>
+<span id="cb8-41"><a href="#cb8-41" aria-hidden="true" tabindex="-1"></a>  <span class="co"># sample the clusters randomly</span></span>
+<span id="cb8-42"><a href="#cb8-42" aria-hidden="true" tabindex="-1"></a>  <span class="at">state =</span> <span class="fu">sample</span>(<span class="dv">1</span><span class="sc">:</span><span class="dv">30</span>, <span class="dv">30</span>, <span class="at">replace =</span> <span class="cn">FALSE</span>),</span>
+<span id="cb8-43"><a href="#cb8-43" aria-hidden="true" tabindex="-1"></a>  <span class="co"># place the randomly sampled states into 1\{t \ge g \}G_g</span></span>
+<span id="cb8-44"><a href="#cb8-44" aria-hidden="true" tabindex="-1"></a>  <span class="at">cohort_year =</span> <span class="fu">sort</span>(<span class="fu">rep</span>(<span class="fu">c</span>(<span class="dv">2014</span>, <span class="dv">2016</span>, <span class="dv">2018</span>), <span class="dv">10</span>))</span>
+<span id="cb8-45"><a href="#cb8-45" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb8-46"><a href="#cb8-46" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-47"><a href="#cb8-47" aria-hidden="true" tabindex="-1"></a><span class="co"># make main dataset</span></span>
+<span id="cb8-48"><a href="#cb8-48" aria-hidden="true" tabindex="-1"></a><span class="co"># full interaction of unit X year </span></span>
+<span id="cb8-49"><a href="#cb8-49" aria-hidden="true" tabindex="-1"></a>d <span class="ot">&lt;-</span> <span class="fu">expand_grid</span>(<span class="at">unit =</span> <span class="dv">1</span><span class="sc">:</span><span class="dv">1000</span>, <span class="at">year =</span> <span class="dv">2011</span><span class="sc">:</span><span class="dv">2020</span>) <span class="sc">%&gt;%</span> </span>
+<span id="cb8-50"><a href="#cb8-50" aria-hidden="true" tabindex="-1"></a>  <span class="fu">left_join</span>(., unit) <span class="sc">%&gt;%</span> </span>
+<span id="cb8-51"><a href="#cb8-51" aria-hidden="true" tabindex="-1"></a>  <span class="fu">left_join</span>(., year) <span class="sc">%&gt;%</span> </span>
+<span id="cb8-52"><a href="#cb8-52" aria-hidden="true" tabindex="-1"></a>  <span class="fu">left_join</span>(., treat_taus) <span class="sc">%&gt;%</span> </span>
+<span id="cb8-53"><a href="#cb8-53" aria-hidden="true" tabindex="-1"></a>  <span class="co"># make error term and get treatment indicators and treatment effects</span></span>
+<span id="cb8-54"><a href="#cb8-54" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Also get cohort specific trends (modify time FE)</span></span>
+<span id="cb8-55"><a href="#cb8-55" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">error =</span> <span class="fu">rnorm</span>(<span class="dv">1000</span><span class="sc">*</span><span class="dv">10</span>, <span class="dv">0</span>, <span class="dv">2</span>),</span>
+<span id="cb8-56"><a href="#cb8-56" aria-hidden="true" tabindex="-1"></a>         <span class="at">treat =</span> <span class="fu">ifelse</span>((year <span class="sc">&gt;=</span> </span>
+<span id="cb8-57"><a href="#cb8-57" aria-hidden="true" tabindex="-1"></a>           cohort_year)<span class="sc">*</span>(cohort_year <span class="sc">!=</span> <span class="dv">2018</span>), <span class="dv">1</span>, <span class="dv">0</span>),</span>
+<span id="cb8-58"><a href="#cb8-58" aria-hidden="true" tabindex="-1"></a>         <span class="co"># treatment effect = 1 if 2016, 2 if 2014, annually</span></span>
+<span id="cb8-59"><a href="#cb8-59" aria-hidden="true" tabindex="-1"></a>         <span class="at">mu =</span> <span class="fu">ifelse</span>(cohort_year<span class="sc">==</span><span class="dv">2016</span>, <span class="dv">1</span>, <span class="dv">2</span>),</span>
+<span id="cb8-60"><a href="#cb8-60" aria-hidden="true" tabindex="-1"></a>         <span class="at">tau =</span> <span class="fu">ifelse</span>(treat <span class="sc">==</span> <span class="dv">1</span>, mu, <span class="dv">0</span>),</span>
+<span id="cb8-61"><a href="#cb8-61" aria-hidden="true" tabindex="-1"></a>         <span class="at">year_fe =</span> year_fe <span class="sc">+</span> <span class="fl">0.5</span><span class="sc">*</span>(year <span class="sc">-</span> cohort_year)</span>
+<span id="cb8-62"><a href="#cb8-62" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">%&gt;%</span> </span>
+<span id="cb8-63"><a href="#cb8-63" aria-hidden="true" tabindex="-1"></a>  <span class="co"># calculate cumulative treatment effects</span></span>
+<span id="cb8-64"><a href="#cb8-64" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(unit) <span class="sc">%&gt;%</span> </span>
+<span id="cb8-65"><a href="#cb8-65" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">tau_cum =</span> <span class="fu">cumsum</span>(tau)) <span class="sc">%&gt;%</span> </span>
+<span id="cb8-66"><a href="#cb8-66" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ungroup</span>() <span class="sc">%&gt;%</span> </span>
+<span id="cb8-67"><a href="#cb8-67" aria-hidden="true" tabindex="-1"></a>  <span class="co"># calculate the dependent variable</span></span>
+<span id="cb8-68"><a href="#cb8-68" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">y =</span> (<span class="dv">2020</span> <span class="sc">-</span> cohort_year) <span class="sc">+</span> </span>
+<span id="cb8-69"><a href="#cb8-69" aria-hidden="true" tabindex="-1"></a>           unit_fe <span class="sc">+</span> year_fe <span class="sc">+</span> tau_cum <span class="sc">+</span> error) <span class="sc">%&gt;%</span></span>
+<span id="cb8-70"><a href="#cb8-70" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Relabel 2018 cohort as never-treated</span></span>
+<span id="cb8-71"><a href="#cb8-71" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">cohort_year =</span> <span class="fu">ifelse</span>(cohort_year <span class="sc">==</span> <span class="dv">2018</span>, <span class="cn">Inf</span>, cohort_year))</span>
+<span id="cb8-72"><a href="#cb8-72" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb8-73"><a href="#cb8-73" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-74"><a href="#cb8-74" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-75"><a href="#cb8-75" aria-hidden="true" tabindex="-1"></a>For this example we will use a simulated example.^<span class="co">[</span><span class="ot">This section borrows heavily from Brantly Callaway's excellent [vignette](https://bcallaway11.github.io/did/articles/TWFE.html) on the dangers of using Two-Way Fixed Effects (TWFE) in the context of staggered treatments.</span><span class="co">]</span> For the time being, we are ignoring covariates. </span>
+<span id="cb8-76"><a href="#cb8-76" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-77"><a href="#cb8-77" aria-hidden="true" tabindex="-1"></a>We are simulating a staggered treatment setup where 30 'clusters', which could be countries, villages, states, etc., but in this case we will use states ($state = <span class="sc">\{</span>1,2,\dots,30<span class="sc">\}</span>$), which are randomly assigned into 3 treatment groups depending on the treatment starting year (2014, 2016, never treated). We denote the treatment starting period as $g$ that encompasses the 3 groups (i.e., $g \in <span class="sc">\{</span> 2014, 2016, \text{-Inf}<span class="sc">\}</span>$), where $\text{-Inf}$ indicates the never treated group (following Callaway/Sant'Anna here such that $g = \infty$ for a never-treated group). We have 1000 units spread out over the 30 clusters, which could be individuals, schools, hospitals, or some other smaller units $i$, which are randomly assigned to one of the 30 states. Let $G_i$ indicates the group/cohort unit $i$ belongs to, i.e., $G \subseteq <span class="sc">\{</span> 2014, 2016, \infty<span class="sc">\}</span>$.</span>
+<span id="cb8-78"><a href="#cb8-78" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-79"><a href="#cb8-79" aria-hidden="true" tabindex="-1"></a>The data generating process (DGP) for the outcome $Y$ is: </span>
+<span id="cb8-80"><a href="#cb8-80" aria-hidden="true" tabindex="-1"></a>$$Y_{it} = (2020-g) + \alpha_i + \beta_t + \tau_{it} + \epsilon_{it}$$</span>
+<span id="cb8-81"><a href="#cb8-81" aria-hidden="true" tabindex="-1"></a>where $\alpha_i$ are unit (i.e., cluster) fixed effects drawn from $\sim N(\mu_{state}, 1)$ with state-specific mean $\mu_{state} = state/10$, $\beta_t$ are time fixed effects (cohort-specific parallel time-trends) generated as $$\beta_t = 0.5 * (t - g) + \epsilon^{time FE}_t, $$ with $\epsilon^{time FE}_t \sim N(0, 1)$, $\epsilon_{i,t} \sim N(0,2)$ is an idiosyncratic error term. The $\tau_{i,t}$ are the (instantaneous) unit-specific treatment effects at time $t$ generated as </span>
+<span id="cb8-82"><a href="#cb8-82" aria-hidden="true" tabindex="-1"></a>$$ \tau_{it} = \mu_g \times (t - g + 1)\times 1<span class="sc">\{</span>t \ge g <span class="sc">\}</span>1<span class="sc">\{</span>g\not=\infty <span class="sc">\}</span>,$$</span>
+<span id="cb8-83"><a href="#cb8-83" aria-hidden="true" tabindex="-1"></a>where $t$ and $g$ are defined as above and $1<span class="sc">\{\}</span>$ is a logical operator. We set $\mu_{2014} = 2$, and $\mu_{2016} = 1$. </span>
+<span id="cb8-84"><a href="#cb8-84" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-85"><a href="#cb8-85" aria-hidden="true" tabindex="-1"></a>So, for example, in 2014 when $G_{2014}$ is first treated, $(t - g + 1)=1$ and the treatment effect is 2. This setup implies heterogeneity: for the group that started treatment in 2014, its average treatment effects evolves with time since first treatment as $2,4,6,\dots$. For the group that started treatment in 2016 the average treatment effect evolves with elapsed time as $1,2,3,\dots$. The treatment effect is zero for the "never-treated" cohort ($g=\infty$). In this case the early-treated group ($g=2014$) benefits more than the later treated group.</span>
+<span id="cb8-86"><a href="#cb8-86" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-87"><a href="#cb8-87" aria-hidden="true" tabindex="-1"></a>Given that each group has same size (on average), the true average treatment effect dynamic across treated groups is $(2+1)/2 = 1.5$ at the time a unit is treated, $2 \times (2+1)/2 = 3$ in the first period after treatment started, etc.</span>
+<span id="cb8-88"><a href="#cb8-88" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-89"><a href="#cb8-89" aria-hidden="true" tabindex="-1"></a>A random sample of 10 rows of the data are shown below:</span>
+<span id="cb8-90"><a href="#cb8-90" aria-hidden="true" tabindex="-1"></a><span class="in">```{r simtab, results = 'asis', cache=TRUE, message=FALSE}</span></span>
+<span id="cb8-91"><a href="#cb8-91" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-92"><a href="#cb8-92" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(kableExtra)</span>
+<span id="cb8-93"><a href="#cb8-93" aria-hidden="true" tabindex="-1"></a>ds <span class="ot">&lt;-</span> <span class="fu">sample_n</span>(d,<span class="dv">10</span>)</span>
+<span id="cb8-94"><a href="#cb8-94" aria-hidden="true" tabindex="-1"></a><span class="fu">kable</span>(ds, <span class="at">caption =</span> <span class="st">"10 rows of simulated data"</span>, <span class="at">digits =</span> <span class="dv">3</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb8-95"><a href="#cb8-95" aria-hidden="true" tabindex="-1"></a>  <span class="fu">kable_styling</span>()</span>
+<span id="cb8-96"><a href="#cb8-96" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb8-97"><a href="#cb8-97" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-98"><a href="#cb8-98" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-99"><a href="#cb8-99" aria-hidden="true" tabindex="-1"></a><span class="fu">## Plot of simulated data</span></span>
+<span id="cb8-100"><a href="#cb8-100" aria-hidden="true" tabindex="-1"></a>Below we show the evolution of $y$ over time for the 3 treatment groups (2014, 2016, untreated). The vertical lines indicate the time of treatment, i.e. $g=t$ for each treated group, and the bold lines show the average evolution of the outcome for each treatment group.</span>
+<span id="cb8-101"><a href="#cb8-101" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-102"><a href="#cb8-102" aria-hidden="true" tabindex="-1"></a><span class="in">```{r plotsim, cache=TRUE, message=FALSE}</span></span>
+<span id="cb8-103"><a href="#cb8-103" aria-hidden="true" tabindex="-1"></a><span class="co">#| code-fold: true</span></span>
+<span id="cb8-104"><a href="#cb8-104" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-105"><a href="#cb8-105" aria-hidden="true" tabindex="-1"></a><span class="fu">theme_set</span>(<span class="fu">theme_classic</span>() <span class="sc">+</span> </span>
+<span id="cb8-106"><a href="#cb8-106" aria-hidden="true" tabindex="-1"></a>            <span class="fu">theme</span>(<span class="at">plot.background =</span> <span class="fu">element_blank</span>()))</span>
+<span id="cb8-107"><a href="#cb8-107" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-108"><a href="#cb8-108" aria-hidden="true" tabindex="-1"></a>plot <span class="ot">&lt;-</span> d <span class="sc">%&gt;%</span> </span>
+<span id="cb8-109"><a href="#cb8-109" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>(<span class="fu">aes</span>(<span class="at">x =</span> year, <span class="at">y =</span> y, <span class="at">group =</span> unit)) <span class="sc">+</span> </span>
+<span id="cb8-110"><a href="#cb8-110" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>(<span class="at">alpha =</span> <span class="dv">1</span><span class="sc">/</span><span class="dv">8</span>, <span class="at">color =</span> <span class="st">"grey"</span>) <span class="sc">+</span> </span>
+<span id="cb8-111"><a href="#cb8-111" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>(<span class="at">data =</span> d <span class="sc">%&gt;%</span> </span>
+<span id="cb8-112"><a href="#cb8-112" aria-hidden="true" tabindex="-1"></a>    <span class="fu">group_by</span>(cohort_year, year) <span class="sc">%&gt;%</span> </span>
+<span id="cb8-113"><a href="#cb8-113" aria-hidden="true" tabindex="-1"></a>    <span class="fu">summarize</span>(<span class="at">y =</span> <span class="fu">mean</span>(y)),</span>
+<span id="cb8-114"><a href="#cb8-114" aria-hidden="true" tabindex="-1"></a>   <span class="fu">aes</span>(<span class="at">x =</span> year, <span class="at">y =</span> y, <span class="at">group =</span> <span class="fu">factor</span>(cohort_year),</span>
+<span id="cb8-115"><a href="#cb8-115" aria-hidden="true" tabindex="-1"></a>    <span class="at">color =</span> <span class="fu">factor</span>(cohort_year)), <span class="at">linewidth =</span> <span class="dv">2</span>) <span class="sc">+</span> </span>
+<span id="cb8-116"><a href="#cb8-116" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">""</span>, <span class="at">y =</span> <span class="st">"Y"</span>,  <span class="at">color =</span> <span class="st">"Treatment group   "</span>) <span class="sc">+</span></span>
+<span id="cb8-117"><a href="#cb8-117" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_x_continuous</span>(<span class="at">breaks =</span> <span class="fu">c</span>(<span class="dv">2012</span>, <span class="dv">2014</span>, <span class="dv">2016</span>, <span class="dv">2018</span>, <span class="dv">2020</span>)) <span class="sc">+</span></span>
+<span id="cb8-118"><a href="#cb8-118" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_vline</span>(<span class="at">xintercept =</span> <span class="dv">2014</span>, <span class="at">color =</span> <span class="st">'#E41A1C'</span>, <span class="at">linewidth =</span> <span class="dv">2</span>) <span class="sc">+</span> </span>
+<span id="cb8-119"><a href="#cb8-119" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_vline</span>(<span class="at">xintercept =</span> <span class="dv">2016</span>, <span class="at">color =</span> <span class="st">'#377EB8'</span>, <span class="at">linewidth =</span> <span class="dv">2</span>) <span class="sc">+</span> </span>
+<span id="cb8-120"><a href="#cb8-120" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_color_brewer</span>(<span class="at">palette =</span> <span class="st">'Set1'</span>) <span class="sc">+</span> </span>
+<span id="cb8-121"><a href="#cb8-121" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(<span class="at">legend.position =</span> <span class="st">'bottom'</span>,</span>
+<span id="cb8-122"><a href="#cb8-122" aria-hidden="true" tabindex="-1"></a>        <span class="co">#legend.title = element_blank(), </span></span>
+<span id="cb8-123"><a href="#cb8-123" aria-hidden="true" tabindex="-1"></a>        <span class="at">axis.title =</span> <span class="fu">element_text</span>(<span class="at">size =</span> <span class="dv">14</span>),</span>
+<span id="cb8-124"><a href="#cb8-124" aria-hidden="true" tabindex="-1"></a>        <span class="at">axis.text =</span> <span class="fu">element_text</span>(<span class="at">size =</span> <span class="dv">12</span>)) <span class="sc">+</span></span>
+<span id="cb8-125"><a href="#cb8-125" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_color_manual</span>(<span class="at">labels =</span> <span class="fu">c</span>(<span class="st">"2014"</span>, <span class="st">"2016"</span>, <span class="st">"Never-treated"</span>),</span>
+<span id="cb8-126"><a href="#cb8-126" aria-hidden="true" tabindex="-1"></a>                     <span class="at">values =</span> <span class="fu">c</span>(<span class="st">"#E41A1C"</span>, <span class="st">"#377EB8"</span>, <span class="st">"#4DAF4A"</span>)) <span class="sc">+</span></span>
+<span id="cb8-127"><a href="#cb8-127" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggtitle</span>(<span class="st">"Simulated data with heterogeneous treatment effect dynamics across cohorts </span><span class="sc">\n</span><span class="st"> and with a never-treated group"</span>)<span class="sc">+</span></span>
+<span id="cb8-128"><a href="#cb8-128" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(<span class="at">plot.title =</span> <span class="fu">element_text</span>(<span class="at">hjust =</span> <span class="fl">0.5</span>, <span class="at">size=</span><span class="dv">12</span>))</span>
+<span id="cb8-129"><a href="#cb8-129" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-130"><a href="#cb8-130" aria-hidden="true" tabindex="-1"></a>plot </span>
+<span id="cb8-131"><a href="#cb8-131" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb8-132"><a href="#cb8-132" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-133"><a href="#cb8-133" aria-hidden="true" tabindex="-1"></a><span class="fu"># Estimating treatment effects</span></span>
+<span id="cb8-134"><a href="#cb8-134" aria-hidden="true" tabindex="-1"></a>Next we show various ways of estimating the treatment effects, starting with the standard two-way fixed effects (TWFE) that has been standard in many diff-in-diffs analyses. </span>
+<span id="cb8-135"><a href="#cb8-135" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-136"><a href="#cb8-136" aria-hidden="true" tabindex="-1"></a><span class="fu">## TWFE (average)</span></span>
+<span id="cb8-137"><a href="#cb8-137" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-138"><a href="#cb8-138" aria-hidden="true" tabindex="-1"></a>The basic model is estimated as:</span>
+<span id="cb8-139"><a href="#cb8-139" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-140"><a href="#cb8-140" aria-hidden="true" tabindex="-1"></a>$$Y_{it} = \alpha_i + \beta_t + \gamma D_{it} + \varepsilon_{it}$$ </span>
+<span id="cb8-141"><a href="#cb8-141" aria-hidden="true" tabindex="-1"></a>where $D_{i,t}$ is a time-varying treatment dummy variable that takes value one if a unit $i$ is treated at time $t$, and $\alpha_{i}$ and $\beta_{t}$ are fixed effects for unit and time, respectively. We implement this below using the <span class="in">`fixest`</span> package and cluster the standard errors at the state level. </span>
+<span id="cb8-142"><a href="#cb8-142" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-143"><a href="#cb8-143" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-144"><a href="#cb8-144" aria-hidden="true" tabindex="-1"></a><span class="in">```{r est, message=FALSE}</span></span>
+<span id="cb8-145"><a href="#cb8-145" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-146"><a href="#cb8-146" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(fixest)</span>
+<span id="cb8-147"><a href="#cb8-147" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(fastDummies)</span>
+<span id="cb8-148"><a href="#cb8-148" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(modelsummary)</span>
+<span id="cb8-149"><a href="#cb8-149" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(marginaleffects)</span>
+<span id="cb8-150"><a href="#cb8-150" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(did)</span>
+<span id="cb8-151"><a href="#cb8-151" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb8-152"><a href="#cb8-152" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-153"><a href="#cb8-153" aria-hidden="true" tabindex="-1"></a><span class="fu">## TWFE (dynamic)</span></span>
+<span id="cb8-154"><a href="#cb8-154" aria-hidden="true" tabindex="-1"></a>Many analyses using TWFE also typically implement an 'event study' type analysis as a robustness check, both to see how the treatment effect may evolve over time in the post period and to see whether there may be some evidence of non-parallel trends in the pre-treatment period. We can implement the event-study type model as:</span>
+<span id="cb8-155"><a href="#cb8-155" aria-hidden="true" tabindex="-1"></a>$$Y_{it} = \alpha_i + \beta_t + \sum_{k\neq-1} \gamma_{k} D_{it} + \varepsilon_{it}$$ </span>
+<span id="cb8-156"><a href="#cb8-156" aria-hidden="true" tabindex="-1"></a>where $k$ indicates time indicators relative to first treatment (i.e., $k=-2$ means 2 periods prior to treatment) and $\gamma_{k}$ are the coefficients on the relative time indicators. To avoid collinearity we exclude one period, which is typically the period just before first treatment ($k=-1$). </span>
+<span id="cb8-157"><a href="#cb8-157" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-158"><a href="#cb8-158" aria-hidden="true" tabindex="-1"></a>Below is a table showing the estimated effects from the TWFE and event-study models:</span>
+<span id="cb8-159"><a href="#cb8-159" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-160"><a href="#cb8-160" aria-hidden="true" tabindex="-1"></a><span class="in">```{r es, cache=TRUE}</span></span>
+<span id="cb8-161"><a href="#cb8-161" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-162"><a href="#cb8-162" aria-hidden="true" tabindex="-1"></a><span class="co"># Estimate TWFE</span></span>
+<span id="cb8-163"><a href="#cb8-163" aria-hidden="true" tabindex="-1"></a>twfe <span class="ot">=</span> fixest<span class="sc">::</span><span class="fu">feols</span>(</span>
+<span id="cb8-164"><a href="#cb8-164" aria-hidden="true" tabindex="-1"></a>  y <span class="sc">~</span> treat <span class="sc">|</span> state <span class="sc">+</span> year,</span>
+<span id="cb8-165"><a href="#cb8-165" aria-hidden="true" tabindex="-1"></a>  <span class="at">data =</span> d,</span>
+<span id="cb8-166"><a href="#cb8-166" aria-hidden="true" tabindex="-1"></a>  <span class="at">vcov =</span> <span class="sc">~</span>state</span>
+<span id="cb8-167"><a href="#cb8-167" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb8-168"><a href="#cb8-168" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-169"><a href="#cb8-169" aria-hidden="true" tabindex="-1"></a><span class="co"># first make dummy columns for relative time</span></span>
+<span id="cb8-170"><a href="#cb8-170" aria-hidden="true" tabindex="-1"></a>data <span class="ot">&lt;-</span> d <span class="sc">%&gt;%</span> </span>
+<span id="cb8-171"><a href="#cb8-171" aria-hidden="true" tabindex="-1"></a>  <span class="co"># make dummies</span></span>
+<span id="cb8-172"><a href="#cb8-172" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">rel_year =</span> year <span class="sc">-</span> cohort_year) <span class="sc">%&gt;%</span> </span>
+<span id="cb8-173"><a href="#cb8-173" aria-hidden="true" tabindex="-1"></a>  <span class="fu">dummy_cols</span>(<span class="at">select_columns =</span> <span class="st">"rel_year"</span>) </span>
+<span id="cb8-174"><a href="#cb8-174" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-175"><a href="#cb8-175" aria-hidden="true" tabindex="-1"></a><span class="co"># estimate the model</span></span>
+<span id="cb8-176"><a href="#cb8-176" aria-hidden="true" tabindex="-1"></a>twfe_event <span class="ot">=</span> fixest<span class="sc">::</span><span class="fu">feols</span>(</span>
+<span id="cb8-177"><a href="#cb8-177" aria-hidden="true" tabindex="-1"></a>  y <span class="sc">~</span> <span class="st">`</span><span class="at">rel_year_-5</span><span class="st">`</span> <span class="sc">+</span> <span class="st">`</span><span class="at">rel_year_-4</span><span class="st">`</span> <span class="sc">+</span> <span class="st">`</span><span class="at">rel_year_-3</span><span class="st">`</span> <span class="sc">+</span> </span>
+<span id="cb8-178"><a href="#cb8-178" aria-hidden="true" tabindex="-1"></a>      <span class="st">`</span><span class="at">rel_year_-2</span><span class="st">`</span> <span class="sc">+</span> <span class="st">`</span><span class="at">rel_year_0</span><span class="st">`</span> <span class="sc">+</span> <span class="st">`</span><span class="at">rel_year_1</span><span class="st">`</span> <span class="sc">+</span> </span>
+<span id="cb8-179"><a href="#cb8-179" aria-hidden="true" tabindex="-1"></a>    <span class="st">`</span><span class="at">rel_year_2</span><span class="st">`</span> <span class="sc">+</span> <span class="st">`</span><span class="at">rel_year_3</span><span class="st">`</span> <span class="sc">+</span> <span class="st">`</span><span class="at">rel_year_4</span><span class="st">`</span> <span class="sc">+</span> </span>
+<span id="cb8-180"><a href="#cb8-180" aria-hidden="true" tabindex="-1"></a>    <span class="st">`</span><span class="at">rel_year_5</span><span class="st">`</span> <span class="sc">|</span> state <span class="sc">+</span> year,</span>
+<span id="cb8-181"><a href="#cb8-181" aria-hidden="true" tabindex="-1"></a>  <span class="at">data =</span> data,</span>
+<span id="cb8-182"><a href="#cb8-182" aria-hidden="true" tabindex="-1"></a>  <span class="at">vcov =</span> <span class="sc">~</span>state</span>
+<span id="cb8-183"><a href="#cb8-183" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb8-184"><a href="#cb8-184" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-185"><a href="#cb8-185" aria-hidden="true" tabindex="-1"></a>rename_rt <span class="ot">&lt;-</span> <span class="cf">function</span>(old_names) {</span>
+<span id="cb8-186"><a href="#cb8-186" aria-hidden="true" tabindex="-1"></a>  new_names <span class="ot">&lt;-</span> <span class="fu">gsub</span>(<span class="st">"rel_year_"</span>, <span class="st">"Relative time: "</span>, old_names)</span>
+<span id="cb8-187"><a href="#cb8-187" aria-hidden="true" tabindex="-1"></a>  <span class="fu">setNames</span>(new_names, old_names)</span>
+<span id="cb8-188"><a href="#cb8-188" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb8-189"><a href="#cb8-189" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-190"><a href="#cb8-190" aria-hidden="true" tabindex="-1"></a><span class="fu">modelsummary</span>(<span class="fu">list</span>(<span class="st">"TWFE"</span> <span class="ot">=</span> twfe, </span>
+<span id="cb8-191"><a href="#cb8-191" aria-hidden="true" tabindex="-1"></a>  <span class="st">"TWFE:Event study"</span> <span class="ot">=</span> twfe_event),</span>
+<span id="cb8-192"><a href="#cb8-192" aria-hidden="true" tabindex="-1"></a>  <span class="at">coef_rename =</span> rename_rt,</span>
+<span id="cb8-193"><a href="#cb8-193" aria-hidden="true" tabindex="-1"></a>  <span class="at">gof_omit =</span><span class="st">'DF|Deviance|R2|AIC|BIC|Log.Lik|ICC|RMSE'</span>)</span>
+<span id="cb8-194"><a href="#cb8-194" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb8-195"><a href="#cb8-195" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-196"><a href="#cb8-196" aria-hidden="true" tabindex="-1"></a>How well do the event study coefficients map on to our true estimates from the DGP? Below we show a plot of the true effects based on the simulated data, as well as the estimates from the event study. The answer is: not well. Not only are the TWFE event-study estimate incorrect in the post period, they also suggest some evidence for non-parallel trends in the pre-period. <span class="co">[</span><span class="ot">some text on intuition for this would be helpful here</span><span class="co">]</span>.</span>
+<span id="cb8-197"><a href="#cb8-197" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-198"><a href="#cb8-198" aria-hidden="true" tabindex="-1"></a><span class="in">```{r esp, cache=TRUE, message = FALSE, warning=FALSE}</span></span>
+<span id="cb8-199"><a href="#cb8-199" aria-hidden="true" tabindex="-1"></a><span class="co"># plot of estimates</span></span>
+<span id="cb8-200"><a href="#cb8-200" aria-hidden="true" tabindex="-1"></a>pt <span class="ot">&lt;-</span> <span class="fu">get_estimates</span>(twfe_event) <span class="sc">%&gt;%</span></span>
+<span id="cb8-201"><a href="#cb8-201" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(term, estimate, conf.low, conf.high) <span class="sc">%&gt;%</span></span>
+<span id="cb8-202"><a href="#cb8-202" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">t =</span> <span class="fu">c</span>(<span class="sc">-</span><span class="dv">5</span><span class="sc">:-</span><span class="dv">2</span>, <span class="dv">0</span><span class="sc">:</span><span class="dv">5</span>)) <span class="sc">%&gt;%</span></span>
+<span id="cb8-203"><a href="#cb8-203" aria-hidden="true" tabindex="-1"></a>  <span class="fu">bind_rows</span>(<span class="fu">tibble</span>(<span class="at">t =</span> <span class="sc">-</span><span class="dv">1</span>, <span class="at">estimate =</span> <span class="dv">0</span>, </span>
+<span id="cb8-204"><a href="#cb8-204" aria-hidden="true" tabindex="-1"></a>    <span class="at">conf.low =</span> <span class="dv">0</span>, <span class="at">conf.high =</span> <span class="dv">0</span>, <span class="at">term =</span> <span class="st">"rel_year_-1"</span>)) <span class="sc">%&gt;%</span></span>
+<span id="cb8-205"><a href="#cb8-205" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">true_tau =</span> <span class="fu">ifelse</span>(t <span class="sc">&gt;=</span> <span class="dv">0</span>, ((t <span class="sc">+</span> <span class="dv">1</span>) <span class="sc">*</span> <span class="fl">1.5</span> ), <span class="dv">0</span>))</span>
+<span id="cb8-206"><a href="#cb8-206" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-207"><a href="#cb8-207" aria-hidden="true" tabindex="-1"></a>colors <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">"True Effect"</span> <span class="ot">=</span> <span class="st">"red"</span>, <span class="st">"Estimated Effect"</span> <span class="ot">=</span> <span class="st">"blue"</span>)</span>
+<span id="cb8-208"><a href="#cb8-208" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-209"><a href="#cb8-209" aria-hidden="true" tabindex="-1"></a>plot_es <span class="ot">&lt;-</span> pt <span class="sc">%&gt;%</span></span>
+<span id="cb8-210"><a href="#cb8-210" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>(<span class="fu">aes</span>(<span class="at">x =</span> t, <span class="at">y =</span> estimate)) <span class="sc">+</span> </span>
+<span id="cb8-211"><a href="#cb8-211" aria-hidden="true" tabindex="-1"></a>    <span class="fu">geom_point</span>(<span class="at">color =</span> <span class="st">"blue"</span>, <span class="at">size =</span> <span class="dv">3</span>) <span class="sc">+</span></span>
+<span id="cb8-212"><a href="#cb8-212" aria-hidden="true" tabindex="-1"></a>    <span class="fu">geom_line</span>(<span class="fu">aes</span>(<span class="at">color =</span> <span class="st">'Estimated Effect'</span>), <span class="at">linewidth =</span> <span class="dv">1</span>) <span class="sc">+</span></span>
+<span id="cb8-213"><a href="#cb8-213" aria-hidden="true" tabindex="-1"></a>    <span class="fu">geom_linerange</span>(<span class="fu">aes</span>(<span class="at">ymin =</span> conf.low, <span class="at">ymax =</span> conf.high), </span>
+<span id="cb8-214"><a href="#cb8-214" aria-hidden="true" tabindex="-1"></a>    <span class="at">color =</span> <span class="st">"blue"</span>, <span class="at">linewidth =</span> <span class="dv">2</span>, <span class="at">alpha =</span> <span class="fl">0.3</span>) <span class="sc">+</span></span>
+<span id="cb8-215"><a href="#cb8-215" aria-hidden="true" tabindex="-1"></a>    <span class="fu">geom_line</span>(<span class="fu">aes</span>(<span class="at">x =</span> t, <span class="at">y =</span> true_tau, <span class="at">color =</span> <span class="st">'True Effect'</span>), </span>
+<span id="cb8-216"><a href="#cb8-216" aria-hidden="true" tabindex="-1"></a>              <span class="at">linetype =</span> <span class="st">"dashed"</span>, <span class="at">linewidth =</span> <span class="dv">2</span>) <span class="sc">+</span> </span>
+<span id="cb8-217"><a href="#cb8-217" aria-hidden="true" tabindex="-1"></a>    <span class="fu">geom_hline</span>(<span class="at">yintercept =</span> <span class="dv">0</span>, <span class="at">linetype =</span> <span class="st">"dashed"</span>) <span class="sc">+</span> </span>
+<span id="cb8-218"><a href="#cb8-218" aria-hidden="true" tabindex="-1"></a>    <span class="fu">scale_x_continuous</span>(<span class="at">breaks =</span> <span class="sc">-</span><span class="dv">5</span><span class="sc">:</span><span class="dv">5</span>) <span class="sc">+</span> </span>
+<span id="cb8-219"><a href="#cb8-219" aria-hidden="true" tabindex="-1"></a>    <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Relative Time"</span>, <span class="at">y =</span> <span class="st">"Estimate"</span>) <span class="sc">+</span></span>
+<span id="cb8-220"><a href="#cb8-220" aria-hidden="true" tabindex="-1"></a>    <span class="fu">ggtitle</span>(<span class="st">"TWFE event-study regression estimates"</span>) <span class="sc">+</span></span>
+<span id="cb8-221"><a href="#cb8-221" aria-hidden="true" tabindex="-1"></a>    <span class="fu">scale_color_manual</span>(<span class="at">values =</span> colors) <span class="sc">+</span> <span class="fu">theme_classic</span>() <span class="sc">+</span></span>
+<span id="cb8-222"><a href="#cb8-222" aria-hidden="true" tabindex="-1"></a>    <span class="fu">theme</span>(<span class="at">legend.position =</span> <span class="st">'bottom'</span>,</span>
+<span id="cb8-223"><a href="#cb8-223" aria-hidden="true" tabindex="-1"></a>      <span class="at">legend.title =</span> <span class="fu">element_blank</span>(), </span>
+<span id="cb8-224"><a href="#cb8-224" aria-hidden="true" tabindex="-1"></a>      <span class="at">axis.title =</span> <span class="fu">element_text</span>(<span class="at">size =</span> <span class="dv">14</span>),</span>
+<span id="cb8-225"><a href="#cb8-225" aria-hidden="true" tabindex="-1"></a>      <span class="at">axis.text =</span> <span class="fu">element_text</span>(<span class="at">size =</span> <span class="dv">12</span>),</span>
+<span id="cb8-226"><a href="#cb8-226" aria-hidden="true" tabindex="-1"></a>      <span class="at">plot.title =</span> <span class="fu">element_text</span>(<span class="at">hjust =</span> <span class="fl">0.5</span>, <span class="at">size=</span><span class="dv">12</span>),</span>
+<span id="cb8-227"><a href="#cb8-227" aria-hidden="true" tabindex="-1"></a>      <span class="at">plot.background =</span> <span class="fu">element_blank</span>())</span>
+<span id="cb8-228"><a href="#cb8-228" aria-hidden="true" tabindex="-1"></a>plot_es</span>
+<span id="cb8-229"><a href="#cb8-229" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb8-230"><a href="#cb8-230" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-231"><a href="#cb8-231" aria-hidden="true" tabindex="-1"></a><span class="fu">## Callaway-Sant'Anna</span></span>
+<span id="cb8-232"><a href="#cb8-232" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-233"><a href="#cb8-233" aria-hidden="true" tabindex="-1"></a>To avoid the problems with the TWFE specification above, we can instead use the approach recently developed by Callaway and Sant’Anna that estimates the average treatment effect on the treated ($ATT$) for each treated group $g$ at each time $t$, i.e., $ATT(g,t)$, where groups are defined according to when they were first treated. The group-time specific estimates of each $ATT(g,t)$ are estimated via regression on *subsets* of the data for each group and time periods covering pre- and post-intervention, using the following specification:</span>
+<span id="cb8-234"><a href="#cb8-234" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-235"><a href="#cb8-235" aria-hidden="true" tabindex="-1"></a>$$Y_{it} = \beta_{0}^{gt} + \beta_{1}^{gt}G + \beta_{2}^{gt}T + \beta_{3}^{gt}(G\times T) + \varepsilon^{gt} $$</span>
+<span id="cb8-236"><a href="#cb8-236" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-237"><a href="#cb8-237" aria-hidden="true" tabindex="-1"></a>where $G$ and $T$ refer to indicators for group and time period and $\beta_{3}^{gt}$ is the $ATT(g,t)$ for each group at a given time. Treated groups are compared to not yet treated groups to estimate group-time specific $ATTs$ , which can be combined to estimate the overall effect of the intervention, as well as dynamic treatment effects. </span>
+<span id="cb8-238"><a href="#cb8-238" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-239"><a href="#cb8-239" aria-hidden="true" tabindex="-1"></a><span class="in">```{r cs, message=FALSE, warning=FALSE}</span></span>
+<span id="cb8-240"><a href="#cb8-240" aria-hidden="true" tabindex="-1"></a><span class="co"># Callaway-Sant'Anna</span></span>
+<span id="cb8-241"><a href="#cb8-241" aria-hidden="true" tabindex="-1"></a>cs <span class="ot">&lt;-</span> did<span class="sc">::</span><span class="fu">att_gt</span>(<span class="at">yname =</span> <span class="st">"y"</span>, </span>
+<span id="cb8-242"><a href="#cb8-242" aria-hidden="true" tabindex="-1"></a>                  <span class="at">tname =</span> <span class="st">"year"</span>,</span>
+<span id="cb8-243"><a href="#cb8-243" aria-hidden="true" tabindex="-1"></a>                  <span class="at">idname =</span> <span class="st">"unit"</span>,</span>
+<span id="cb8-244"><a href="#cb8-244" aria-hidden="true" tabindex="-1"></a>                  <span class="at">gname =</span> <span class="st">"cohort_year"</span>,</span>
+<span id="cb8-245"><a href="#cb8-245" aria-hidden="true" tabindex="-1"></a>                  <span class="at">control_group=</span> <span class="st">"notyettreated"</span>,</span>
+<span id="cb8-246"><a href="#cb8-246" aria-hidden="true" tabindex="-1"></a>                  <span class="at">bstrap =</span> <span class="cn">TRUE</span>,</span>
+<span id="cb8-247"><a href="#cb8-247" aria-hidden="true" tabindex="-1"></a>                  <span class="at">clustervars =</span> <span class="st">"state"</span>,</span>
+<span id="cb8-248"><a href="#cb8-248" aria-hidden="true" tabindex="-1"></a>                  <span class="at">data =</span> d,</span>
+<span id="cb8-249"><a href="#cb8-249" aria-hidden="true" tabindex="-1"></a>                  <span class="at">print_details =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb8-250"><a href="#cb8-250" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-251"><a href="#cb8-251" aria-hidden="true" tabindex="-1"></a>cs_simple <span class="ot">&lt;-</span> did<span class="sc">::</span><span class="fu">aggte</span>(cs, <span class="at">type =</span> <span class="st">"simple"</span>)</span>
+<span id="cb8-252"><a href="#cb8-252" aria-hidden="true" tabindex="-1"></a>cs_event <span class="ot">&lt;-</span> did<span class="sc">::</span><span class="fu">aggte</span>(cs, <span class="at">type =</span> <span class="st">"dynamic"</span>)</span>
+<span id="cb8-253"><a href="#cb8-253" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-254"><a href="#cb8-254" aria-hidden="true" tabindex="-1"></a><span class="co"># wrangle aggregate ATTs for model summary table</span></span>
+<span id="cb8-255"><a href="#cb8-255" aria-hidden="true" tabindex="-1"></a>ti <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
+<span id="cb8-256"><a href="#cb8-256" aria-hidden="true" tabindex="-1"></a>  <span class="at">term =</span> <span class="st">"treat"</span>,</span>
+<span id="cb8-257"><a href="#cb8-257" aria-hidden="true" tabindex="-1"></a>  <span class="at">estimate =</span> cs_simple<span class="sc">$</span>overall.att,</span>
+<span id="cb8-258"><a href="#cb8-258" aria-hidden="true" tabindex="-1"></a>  <span class="at">std.error =</span> cs_simple<span class="sc">$</span>overall.se)</span>
+<span id="cb8-259"><a href="#cb8-259" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-260"><a href="#cb8-260" aria-hidden="true" tabindex="-1"></a>gl <span class="ot">&lt;-</span> <span class="fu">data.frame</span>()</span>
+<span id="cb8-261"><a href="#cb8-261" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-262"><a href="#cb8-262" aria-hidden="true" tabindex="-1"></a>cs_avg <span class="ot">&lt;-</span> <span class="fu">list</span>(<span class="at">tidy =</span> ti, <span class="at">glance =</span> gl)</span>
+<span id="cb8-263"><a href="#cb8-263" aria-hidden="true" tabindex="-1"></a><span class="fu">class</span>(cs_avg) <span class="ot">&lt;-</span> <span class="st">"modelsummary_list"</span></span>
+<span id="cb8-264"><a href="#cb8-264" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-265"><a href="#cb8-265" aria-hidden="true" tabindex="-1"></a><span class="fu">modelsummary</span>(<span class="fu">list</span>(<span class="st">"TWFE"</span> <span class="ot">=</span> twfe, <span class="st">"Callaway"</span> <span class="ot">=</span> cs_avg),</span>
+<span id="cb8-266"><a href="#cb8-266" aria-hidden="true" tabindex="-1"></a>  <span class="at">gof_omit =</span><span class="st">'_*'</span>)</span>
+<span id="cb8-267"><a href="#cb8-267" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div></div></div></div></div>
 </div> <!-- /content -->
 

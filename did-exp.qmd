@@ -14,20 +14,6 @@ In this document we aim to provide an overview of the issues and methods for eva
 
 ## Simulated data
 
-For this example we will use a simulated example.^[This section borrows heavily from Brantly Callaway's excellent [vignette](https://bcallaway11.github.io/did/articles/TWFE.html) on the dangers of using Two-Way Fixed Effects (TWFE) in the context of staggered treatments.] For the time being, we are ignoring covariates. 
-
-We are simulating a staggered treatment setup where 30 'clusters', which could be countries, villages, states, etc., but in this case we will use states ($state = \{1,2,\dots,30\}$), which are randomly assigned into 3 treatment groups depending on the treatment starting year (2014, 2016, never treated). We denote the treatment starting period as $g$ that encompasses the 3 groups (i.e., $g \in \{ 2014, 2016, \text{-Inf}\}$), where $\text{-Inf}$ indicates the never treated group (following Callaway/Sant'Anna here such that $g = \infty$ for a never-treated group). We have 1000 units spread out over the 30 clusters, which could be individuals, schools, hospitals, or some other smaller units $i$, which are randomly assigned to one of the 30 states. Let $G_i$ indicates the group/cohort unit $i$ belongs to, i.e., $G \subseteq \{ 2014, 2016, \infty\}$.
-
-The data generating process (DGP) for the outcome $Y$ we consider is 
-$$Y_{i,t} = (2020-g) + \alpha_i + \beta_t + \tau_{i,t} + \epsilon_{i,t}$$
-where $\alpha_i$ are unit (i.e., cluster) fixed effects drawn from $\sim N(\mu_{state}, 1)$ with state-specific mean $\mu_{state} = state/10$, $\beta_t$ are time fixed effects (cohort-specific parallel time-trends) generated as $$\beta_t = 0.5 * (t - g) + \epsilon^{time FE}_t, $$ with $\epsilon^{time FE}_t \sim N(0, 1)$, $\epsilon_{i,t} \sim N(0,2)$ is an idiosyncratic error term. The $\tau_{i,t}$ are the (instantaneous) unit-specific treatment effects at time $t$ generated as 
-$$ \tau_{i,t} = \mu_g \times (t - g + 1)\times 1\{t \ge g \}1\{g\not=\infty \},$$
-where $t$ and $g$ are defined as above and $1\{\}$ is a logical operator. We set $\mu_{2014} = 2$, and $\mu_{2016} = 1$. 
-
-So, for example, in 2014 when $G_{2014}$ is first treated, $(t - g + 1)=1$ and the treatment effect is 2. This setup implies heterogeneity: for the group that started treatment in 2014, its average treatment effects evolves with time since first treatment as $2,4,6,\dots$. For the group that started treatment in 2016 the average treatment effect evolves with elapsed time as $1,2,3,\dots$. The treatment effect is zero for the "never-treated" cohort ($g=\infty$). In this case the early-treated group ($g=2014$) benefits more than the later treated group.
-
-Given that each group has same size (on average), the true average treatment effect dynamic across treated groups is $(2+1)/2 = 1.5$ at the time a unit is treated, $2 \times (2+1)/2 = 3$ in the first period after treatment started, etc.
-
 ```{r sim, cache=TRUE, message=FALSE}
 #| code-fold: true
 
@@ -85,10 +71,27 @@ d <- expand_grid(unit = 1:1000, year = 2011:2020) %>%
   mutate(cohort_year = ifelse(cohort_year == 2018, Inf, cohort_year))
 ```
 
-The first few rows of the table are shown below:
-```{r simtab, results = 'asis', cache=TRUE}
+
+For this example we will use a simulated example.^[This section borrows heavily from Brantly Callaway's excellent [vignette](https://bcallaway11.github.io/did/articles/TWFE.html) on the dangers of using Two-Way Fixed Effects (TWFE) in the context of staggered treatments.] For the time being, we are ignoring covariates. 
+
+We are simulating a staggered treatment setup where 30 'clusters', which could be countries, villages, states, etc., but in this case we will use states ($state = \{1,2,\dots,30\}$), which are randomly assigned into 3 treatment groups depending on the treatment starting year (2014, 2016, never treated). We denote the treatment starting period as $g$ that encompasses the 3 groups (i.e., $g \in \{ 2014, 2016, \text{-Inf}\}$), where $\text{-Inf}$ indicates the never treated group (following Callaway/Sant'Anna here such that $g = \infty$ for a never-treated group). We have 1000 units spread out over the 30 clusters, which could be individuals, schools, hospitals, or some other smaller units $i$, which are randomly assigned to one of the 30 states. Let $G_i$ indicates the group/cohort unit $i$ belongs to, i.e., $G \subseteq \{ 2014, 2016, \infty\}$.
+
+The data generating process (DGP) for the outcome $Y$ is: 
+$$Y_{it} = (2020-g) + \alpha_i + \beta_t + \tau_{it} + \epsilon_{it}$$
+where $\alpha_i$ are unit (i.e., cluster) fixed effects drawn from $\sim N(\mu_{state}, 1)$ with state-specific mean $\mu_{state} = state/10$, $\beta_t$ are time fixed effects (cohort-specific parallel time-trends) generated as $$\beta_t = 0.5 * (t - g) + \epsilon^{time FE}_t, $$ with $\epsilon^{time FE}_t \sim N(0, 1)$, $\epsilon_{i,t} \sim N(0,2)$ is an idiosyncratic error term. The $\tau_{i,t}$ are the (instantaneous) unit-specific treatment effects at time $t$ generated as 
+$$ \tau_{it} = \mu_g \times (t - g + 1)\times 1\{t \ge g \}1\{g\not=\infty \},$$
+where $t$ and $g$ are defined as above and $1\{\}$ is a logical operator. We set $\mu_{2014} = 2$, and $\mu_{2016} = 1$. 
+
+So, for example, in 2014 when $G_{2014}$ is first treated, $(t - g + 1)=1$ and the treatment effect is 2. This setup implies heterogeneity: for the group that started treatment in 2014, its average treatment effects evolves with time since first treatment as $2,4,6,\dots$. For the group that started treatment in 2016 the average treatment effect evolves with elapsed time as $1,2,3,\dots$. The treatment effect is zero for the "never-treated" cohort ($g=\infty$). In this case the early-treated group ($g=2014$) benefits more than the later treated group.
+
+Given that each group has same size (on average), the true average treatment effect dynamic across treated groups is $(2+1)/2 = 1.5$ at the time a unit is treated, $2 \times (2+1)/2 = 3$ in the first period after treatment started, etc.
+
+A random sample of 10 rows of the data are shown below:
+```{r simtab, results = 'asis', cache=TRUE, message=FALSE}
+
 library(kableExtra)
-kable(d[1:10, ], caption = "Simulated data", digits = 3) %>%
+ds <- sample_n(d,10)
+kable(ds, caption = "10 rows of simulated data", digits = 3) %>%
   kable_styling()
 ```
 
@@ -128,18 +131,138 @@ plot
 ```
 
 # Estimating treatment effects
-Next we show various ways of estimating the treatment effects, starting with the standard two-way fixed effects (TWFE) that has been standard in many diff-in-diffs analyses. The basic model is estimated as:
+Next we show various ways of estimating the treatment effects, starting with the standard two-way fixed effects (TWFE) that has been standard in many diff-in-diffs analyses. 
 
-$$Y_{i,t} = \alpha_i + \beta_t + \gamma D_{i,t} + \varepsilon_{i,t}$$ 
+## TWFE (average)
+
+The basic model is estimated as:
+
+$$Y_{it} = \alpha_i + \beta_t + \gamma D_{it} + \varepsilon_{it}$$ 
 where $D_{i,t}$ is a time-varying treatment dummy variable that takes value one if a unit $i$ is treated at time $t$, and $\alpha_{i}$ and $\beta_{t}$ are fixed effects for unit and time, respectively. We implement this below using the `fixest` package and cluster the standard errors at the state level. 
 
 
-```{r est, cache=TRUE, message=FALSE}
-#| code-fold: true
+```{r est, message=FALSE}
 
 library(fixest)
+library(fastDummies)
 library(modelsummary)
 library(marginaleffects)
 library(did)
+```
+
+## TWFE (dynamic)
+Many analyses using TWFE also typically implement an 'event study' type analysis as a robustness check, both to see how the treatment effect may evolve over time in the post period and to see whether there may be some evidence of non-parallel trends in the pre-treatment period. We can implement the event-study type model as:
+$$Y_{it} = \alpha_i + \beta_t + \sum_{k\neq-1} \gamma_{k} D_{it} + \varepsilon_{it}$$ 
+where $k$ indicates time indicators relative to first treatment (i.e., $k=-2$ means 2 periods prior to treatment) and $\gamma_{k}$ are the coefficients on the relative time indicators. To avoid collinearity we exclude one period, which is typically the period just before first treatment ($k=-1$). 
+
+Below is a table showing the estimated effects from the TWFE and event-study models:
+
+```{r es, cache=TRUE}
+
+# Estimate TWFE
+twfe = fixest::feols(
+  y ~ treat | state + year,
+  data = d,
+  vcov = ~state
+)
+
+# first make dummy columns for relative time
+data <- d %>% 
+  # make dummies
+  mutate(rel_year = year - cohort_year) %>% 
+  dummy_cols(select_columns = "rel_year") 
+
+# estimate the model
+twfe_event = fixest::feols(
+  y ~ `rel_year_-5` + `rel_year_-4` + `rel_year_-3` + 
+      `rel_year_-2` + `rel_year_0` + `rel_year_1` + 
+    `rel_year_2` + `rel_year_3` + `rel_year_4` + 
+    `rel_year_5` | state + year,
+  data = data,
+  vcov = ~state
+)
+
+rename_rt <- function(old_names) {
+  new_names <- gsub("rel_year_", "Relative time: ", old_names)
+  setNames(new_names, old_names)
+}
+
+modelsummary(list("TWFE" = twfe, 
+  "TWFE:Event study" = twfe_event),
+  coef_rename = rename_rt,
+  gof_omit ='DF|Deviance|R2|AIC|BIC|Log.Lik|ICC|RMSE')
+```
+
+How well do the event study coefficients map on to our true estimates from the DGP? Below we show a plot of the true effects based on the simulated data, as well as the estimates from the event study. The answer is: not well. Not only are the TWFE event-study estimate incorrect in the post period, they also suggest some evidence for non-parallel trends in the pre-period. [some text on intuition for this would be helpful here].
+
+```{r esp, cache=TRUE, message = FALSE, warning=FALSE}
+# plot of estimates
+pt <- get_estimates(twfe_event) %>%
+  select(term, estimate, conf.low, conf.high) %>%
+  mutate(t = c(-5:-2, 0:5)) %>%
+  bind_rows(tibble(t = -1, estimate = 0, 
+    conf.low = 0, conf.high = 0, term = "rel_year_-1")) %>%
+  mutate(true_tau = ifelse(t >= 0, ((t + 1) * 1.5 ), 0))
+
+colors <- c("True Effect" = "red", "Estimated Effect" = "blue")
+
+plot_es <- pt %>%
+  ggplot(aes(x = t, y = estimate)) + 
+    geom_point(color = "blue", size = 3) +
+    geom_line(aes(color = 'Estimated Effect'), linewidth = 1) +
+    geom_linerange(aes(ymin = conf.low, ymax = conf.high), 
+    color = "blue", linewidth = 2, alpha = 0.3) +
+    geom_line(aes(x = t, y = true_tau, color = 'True Effect'), 
+              linetype = "dashed", linewidth = 2) + 
+    geom_hline(yintercept = 0, linetype = "dashed") + 
+    scale_x_continuous(breaks = -5:5) + 
+    labs(x = "Relative Time", y = "Estimate") +
+    ggtitle("TWFE event-study regression estimates") +
+    scale_color_manual(values = colors) + theme_classic() +
+    theme(legend.position = 'bottom',
+      legend.title = element_blank(), 
+      axis.title = element_text(size = 14),
+      axis.text = element_text(size = 12),
+      plot.title = element_text(hjust = 0.5, size=12),
+      plot.background = element_blank())
+plot_es
+```
+
+## Callaway-Sant'Anna
+
+To avoid the problems with the TWFE specification above, we can instead use the approach recently developed by Callaway and Sant’Anna that estimates the average treatment effect on the treated ($ATT$) for each treated group $g$ at each time $t$, i.e., $ATT(g,t)$, where groups are defined according to when they were first treated. The group-time specific estimates of each $ATT(g,t)$ are estimated via regression on *subsets* of the data for each group and time periods covering pre- and post-intervention, using the following specification:
+
+$$Y_{it} = \beta_{0}^{gt} + \beta_{1}^{gt}G + \beta_{2}^{gt}T + \beta_{3}^{gt}(G\times T) + \varepsilon^{gt} $$
+
+where $G$ and $T$ refer to indicators for group and time period and $\beta_{3}^{gt}$ is the $ATT(g,t)$ for each group at a given time. Treated groups are compared to not yet treated groups to estimate group-time specific $ATTs$ , which can be combined to estimate the overall effect of the intervention, as well as dynamic treatment effects. 
+
+```{r cs, message=FALSE, warning=FALSE}
+# Callaway-Sant'Anna
+cs <- did::att_gt(yname = "y", 
+                  tname = "year",
+                  idname = "unit",
+                  gname = "cohort_year",
+                  control_group= "notyettreated",
+                  bstrap = TRUE,
+                  clustervars = "state",
+                  data = d,
+                  print_details = FALSE)
+
+cs_simple <- did::aggte(cs, type = "simple")
+cs_event <- did::aggte(cs, type = "dynamic")
+
+# wrangle aggregate ATTs for model summary table
+ti <- data.frame(
+  term = "treat",
+  estimate = cs_simple$overall.att,
+  std.error = cs_simple$overall.se)
+
+gl <- data.frame()
+
+cs_avg <- list(tidy = ti, glance = gl)
+class(cs_avg) <- "modelsummary_list"
+
+modelsummary(list("TWFE" = twfe, "Callaway" = cs_avg),
+  gof_omit ='_*')
 ```
 
