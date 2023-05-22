@@ -155,7 +155,7 @@ Many analyses using TWFE also typically implement an 'event study' type analysis
 $$Y_{it} = \alpha_i + \beta_t + \sum_{k\neq-1} \gamma_{k} D_{it} + \varepsilon_{it}$$ 
 where $k$ indicates time indicators relative to first treatment (i.e., $k=-2$ means 2 periods prior to treatment) and $\gamma_{k}$ are the coefficients on the relative time indicators. To avoid collinearity we exclude one period, which is typically the period just before first treatment ($k=-1$). 
 
-Below is a table showing the estimated effects from the TWFE and event-study models:
+Below is a table showing the estimated effects from the TWFE and event-study models. The overall average estimate from the traditional TWFE model is 3.5, which we know isn't correct, since the average effect should be something closer to $\frac{1}{7}\sum_{t=1}^{7} t*(2+1)/2 = 6$ 
 
 ```{r es, cache=TRUE}
 
@@ -177,7 +177,7 @@ twfe_event = fixest::feols(
   y ~ `rel_year_-5` + `rel_year_-4` + `rel_year_-3` + 
       `rel_year_-2` + `rel_year_0` + `rel_year_1` + 
     `rel_year_2` + `rel_year_3` + `rel_year_4` + 
-    `rel_year_5` | state + year,
+    `rel_year_5` + `rel_year_6` | state + year,
   data = data,
   vcov = ~state
 )
@@ -193,13 +193,13 @@ modelsummary(list("TWFE" = twfe,
   gof_omit ='DF|Deviance|R2|AIC|BIC|Log.Lik|ICC|RMSE')
 ```
 
-How well do the event study coefficients map on to our true estimates from the DGP? Below we show a plot of the true effects based on the simulated data, as well as the estimates from the event study. The answer is: not well. Not only are the TWFE event-study estimate incorrect in the post period, they also suggest some evidence for non-parallel trends in the pre-period. [some text on intuition for this would be helpful here].
+How well do the event study coefficients map on to our true estimates from the DGP? Below we show a plot of the true effects based on the simulated data, as well as the estimates from the event study. The answer is: okay? A number of the TWFE estimates are sensible in the early post period, but further out. More importantly, not only are the TWFE event-study estimate incorrect in the later post period, they also suggest some evidence for non-parallel trends in the pre-period, which, in the before times, might lead one to think the parallel trends assumption is violated, which we know is not the case here since we forced the model to be parallel in the pre period [some text on intuition for this would be helpful here].
 
 ```{r esp, cache=TRUE, message = FALSE, warning=FALSE}
 # plot of estimates
 pt <- get_estimates(twfe_event) %>%
   select(term, estimate, conf.low, conf.high) %>%
-  mutate(t = c(-5:-2, 0:5)) %>%
+  mutate(t = c(-5:-2, 0:6)) %>%
   bind_rows(tibble(t = -1, estimate = 0, 
     conf.low = 0, conf.high = 0, term = "rel_year_-1")) %>%
   mutate(true_tau = ifelse(t >= 0, ((t + 1) * 1.5 ), 0))
@@ -236,6 +236,8 @@ $$Y_{it} = \beta_{0}^{gt} + \beta_{1}^{gt}G + \beta_{2}^{gt}T + \beta_{3}^{gt}(G
 
 where $G$ and $T$ refer to indicators for group and time period and $\beta_{3}^{gt}$ is the $ATT(g,t)$ for each group at a given time. Treated groups are compared to not yet treated groups to estimate group-time specific $ATTs$ , which can be combined to estimate the overall effect of the intervention, as well as dynamic treatment effects. 
 
+The table below compares the estimates from the TWFE model to 'simple' aggregate estimate from the CS model. As before, we know that the 'truth' here should be something like an average $ATT$ of 6. The TWFE estimate is wrong and around 3.5, where as the CS estimate is 5.9, about what it should be.
+
 ```{r cs, message=FALSE, warning=FALSE}
 # Callaway-Sant'Anna
 cs <- did::att_gt(yname = "y", 
@@ -262,7 +264,7 @@ gl <- data.frame()
 cs_avg <- list(tidy = ti, glance = gl)
 class(cs_avg) <- "modelsummary_list"
 
-modelsummary(list("TWFE" = twfe, "Callaway" = cs_avg),
+modelsummary(list("TWFE" = twfe, "Callway-Sant'Anna" = cs_avg),
   gof_omit ='_*')
 ```
 

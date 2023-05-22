@@ -445,7 +445,7 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <h2 class="anchored" data-anchor-id="twfe-dynamic">TWFE (dynamic)</h2>
 <p>Many analyses using TWFE also typically implement an ‘event study’ type analysis as a robustness check, both to see how the treatment effect may evolve over time in the post period and to see whether there may be some evidence of non-parallel trends in the pre-treatment period. We can implement the event-study type model as: <span class="math display">\[Y_{it} = \alpha_i + \beta_t + \sum_{k\neq-1} \gamma_{k} D_{it} + \varepsilon_{it}\]</span> where <span class="math inline">\(k\)</span> indicates time indicators relative to first treatment (i.e., <span class="math inline">\(k=-2\)</span> means 2 periods prior to treatment) and <span class="math inline">\(\gamma_{k}\)</span> are the coefficients on the relative time indicators. To avoid collinearity we exclude one period, which is typically the period just before first treatment (<span class="math inline">\(k=-1\)</span>).</p>
 <p>Below is a table showing the estimated effects from the TWFE and event-study models:</p>
-<div class="cell" data-hash="did-exp_cache/html/es_606c59b4cc9d94fa3f42fc50b00e47b9">
+<div class="cell" data-hash="did-exp_cache/html/es_3946f47a5b2030ae1eb3d3916e6185eb">
 <details>
 <summary>Code</summary>
 <div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Estimate TWFE</span></span>
@@ -466,7 +466,7 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <span id="cb5-16"><a href="#cb5-16" aria-hidden="true" tabindex="-1"></a>  y <span class="sc">~</span> <span class="st">`</span><span class="at">rel_year_-5</span><span class="st">`</span> <span class="sc">+</span> <span class="st">`</span><span class="at">rel_year_-4</span><span class="st">`</span> <span class="sc">+</span> <span class="st">`</span><span class="at">rel_year_-3</span><span class="st">`</span> <span class="sc">+</span> </span>
 <span id="cb5-17"><a href="#cb5-17" aria-hidden="true" tabindex="-1"></a>      <span class="st">`</span><span class="at">rel_year_-2</span><span class="st">`</span> <span class="sc">+</span> <span class="st">`</span><span class="at">rel_year_0</span><span class="st">`</span> <span class="sc">+</span> <span class="st">`</span><span class="at">rel_year_1</span><span class="st">`</span> <span class="sc">+</span> </span>
 <span id="cb5-18"><a href="#cb5-18" aria-hidden="true" tabindex="-1"></a>    <span class="st">`</span><span class="at">rel_year_2</span><span class="st">`</span> <span class="sc">+</span> <span class="st">`</span><span class="at">rel_year_3</span><span class="st">`</span> <span class="sc">+</span> <span class="st">`</span><span class="at">rel_year_4</span><span class="st">`</span> <span class="sc">+</span> </span>
-<span id="cb5-19"><a href="#cb5-19" aria-hidden="true" tabindex="-1"></a>    <span class="st">`</span><span class="at">rel_year_5</span><span class="st">`</span> <span class="sc">|</span> state <span class="sc">+</span> year,</span>
+<span id="cb5-19"><a href="#cb5-19" aria-hidden="true" tabindex="-1"></a>    <span class="st">`</span><span class="at">rel_year_5</span><span class="st">`</span> <span class="sc">+</span> <span class="st">`</span><span class="at">rel_year_6</span><span class="st">`</span> <span class="sc">|</span> state <span class="sc">+</span> year,</span>
 <span id="cb5-20"><a href="#cb5-20" aria-hidden="true" tabindex="-1"></a>  <span class="at">data =</span> data,</span>
 <span id="cb5-21"><a href="#cb5-21" aria-hidden="true" tabindex="-1"></a>  <span class="at">vcov =</span> <span class="sc">~</span>state</span>
 <span id="cb5-22"><a href="#cb5-22" aria-hidden="true" tabindex="-1"></a>)</span>
@@ -505,102 +505,112 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
   <tr>
    <td style="text-align:left;"> Relative time: -5 </td>
    <td style="text-align:center;">  </td>
-   <td style="text-align:center;"> −0.879 </td>
+   <td style="text-align:center;"> 1.721 </td>
   </tr>
   <tr>
    <td style="text-align:left;">  </td>
    <td style="text-align:center;">  </td>
-   <td style="text-align:center;"> (0.715) </td>
+   <td style="text-align:center;"> (0.303) </td>
   </tr>
   <tr>
    <td style="text-align:left;"> Relative time: -4 </td>
    <td style="text-align:center;">  </td>
-   <td style="text-align:center;"> −1.492 </td>
+   <td style="text-align:center;"> 1.749 </td>
   </tr>
   <tr>
    <td style="text-align:left;">  </td>
    <td style="text-align:center;">  </td>
-   <td style="text-align:center;"> (0.446) </td>
+   <td style="text-align:center;"> (0.290) </td>
   </tr>
   <tr>
    <td style="text-align:left;"> Relative time: -3 </td>
    <td style="text-align:center;">  </td>
-   <td style="text-align:center;"> −2.259 </td>
+   <td style="text-align:center;"> 0.611 </td>
   </tr>
   <tr>
    <td style="text-align:left;">  </td>
    <td style="text-align:center;">  </td>
-   <td style="text-align:center;"> (0.639) </td>
+   <td style="text-align:center;"> (0.205) </td>
   </tr>
   <tr>
    <td style="text-align:left;"> Relative time: -2 </td>
    <td style="text-align:center;">  </td>
-   <td style="text-align:center;"> −3.780 </td>
+   <td style="text-align:center;"> 0.361 </td>
   </tr>
   <tr>
    <td style="text-align:left;">  </td>
    <td style="text-align:center;">  </td>
-   <td style="text-align:center;"> (0.491) </td>
+   <td style="text-align:center;"> (0.189) </td>
   </tr>
   <tr>
    <td style="text-align:left;"> Relative time: 0 </td>
    <td style="text-align:center;">  </td>
-   <td style="text-align:center;"> −3.247 </td>
+   <td style="text-align:center;"> 1.252 </td>
   </tr>
   <tr>
    <td style="text-align:left;">  </td>
    <td style="text-align:center;">  </td>
-   <td style="text-align:center;"> (0.443) </td>
+   <td style="text-align:center;"> (0.221) </td>
   </tr>
   <tr>
    <td style="text-align:left;"> Relative time: 1 </td>
    <td style="text-align:center;">  </td>
-   <td style="text-align:center;"> −0.725 </td>
+   <td style="text-align:center;"> 2.583 </td>
   </tr>
   <tr>
    <td style="text-align:left;">  </td>
    <td style="text-align:center;">  </td>
-   <td style="text-align:center;"> (0.252) </td>
+   <td style="text-align:center;"> (0.242) </td>
   </tr>
   <tr>
    <td style="text-align:left;"> Relative time: 2 </td>
    <td style="text-align:center;">  </td>
-   <td style="text-align:center;"> −0.870 </td>
+   <td style="text-align:center;"> 4.182 </td>
   </tr>
   <tr>
    <td style="text-align:left;">  </td>
    <td style="text-align:center;">  </td>
-   <td style="text-align:center;"> (0.473) </td>
+   <td style="text-align:center;"> (0.310) </td>
   </tr>
   <tr>
    <td style="text-align:left;"> Relative time: 3 </td>
    <td style="text-align:center;">  </td>
-   <td style="text-align:center;"> 1.693 </td>
+   <td style="text-align:center;"> 6.067 </td>
   </tr>
   <tr>
    <td style="text-align:left;">  </td>
    <td style="text-align:center;">  </td>
-   <td style="text-align:center;"> (0.181) </td>
+   <td style="text-align:center;"> (0.344) </td>
   </tr>
   <tr>
    <td style="text-align:left;"> Relative time: 4 </td>
    <td style="text-align:center;">  </td>
-   <td style="text-align:center;"> 1.136 </td>
+   <td style="text-align:center;"> 8.064 </td>
   </tr>
   <tr>
    <td style="text-align:left;">  </td>
    <td style="text-align:center;">  </td>
-   <td style="text-align:center;"> (0.573) </td>
+   <td style="text-align:center;"> (0.410) </td>
   </tr>
   <tr>
    <td style="text-align:left;"> Relative time: 5 </td>
    <td style="text-align:center;">  </td>
-   <td style="text-align:center;"> 6.353 </td>
+   <td style="text-align:center;"> 11.730 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;">  </td>
+   <td style="text-align:center;">  </td>
+   <td style="text-align:center;"> (0.295) </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> Relative time: 6 </td>
+   <td style="text-align:center;">  </td>
+   <td style="text-align:center;"> 13.965 </td>
   </tr>
   <tr>
    <td style="text-align:left;box-shadow: 0px 1px">  </td>
    <td style="text-align:center;box-shadow: 0px 1px">  </td>
-   <td style="text-align:center;box-shadow: 0px 1px"> (0.228) </td>
+   <td style="text-align:center;box-shadow: 0px 1px"> (0.369) </td>
   </tr>
   <tr>
    <td style="text-align:left;"> Num.Obs. </td>
@@ -628,13 +638,13 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 </div>
 </div>
 <p>How well do the event study coefficients map on to our true estimates from the DGP? Below we show a plot of the true effects based on the simulated data, as well as the estimates from the event study. The answer is: not well. Not only are the TWFE event-study estimate incorrect in the post period, they also suggest some evidence for non-parallel trends in the pre-period. [some text on intuition for this would be helpful here].</p>
-<div class="cell" data-hash="did-exp_cache/html/esp_d0fe7d1e6dd28b05eacbfe6fb3527f93">
+<div class="cell" data-hash="did-exp_cache/html/esp_c3b90cf550c2857277d092107396d87c">
 <details>
 <summary>Code</summary>
 <div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="co"># plot of estimates</span></span>
 <span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>pt <span class="ot">&lt;-</span> <span class="fu">get_estimates</span>(twfe_event) <span class="sc">%&gt;%</span></span>
 <span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(term, estimate, conf.low, conf.high) <span class="sc">%&gt;%</span></span>
-<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">t =</span> <span class="fu">c</span>(<span class="sc">-</span><span class="dv">5</span><span class="sc">:-</span><span class="dv">2</span>, <span class="dv">0</span><span class="sc">:</span><span class="dv">5</span>)) <span class="sc">%&gt;%</span></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">t =</span> <span class="fu">c</span>(<span class="sc">-</span><span class="dv">5</span><span class="sc">:-</span><span class="dv">2</span>, <span class="dv">0</span><span class="sc">:</span><span class="dv">6</span>)) <span class="sc">%&gt;%</span></span>
 <span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">bind_rows</span>(<span class="fu">tibble</span>(<span class="at">t =</span> <span class="sc">-</span><span class="dv">1</span>, <span class="at">estimate =</span> <span class="dv">0</span>, </span>
 <span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>    <span class="at">conf.low =</span> <span class="dv">0</span>, <span class="at">conf.high =</span> <span class="dv">0</span>, <span class="at">term =</span> <span class="st">"rel_year_-1"</span>)) <span class="sc">%&gt;%</span></span>
 <span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">true_tau =</span> <span class="fu">ifelse</span>(t <span class="sc">&gt;=</span> <span class="dv">0</span>, ((t <span class="sc">+</span> <span class="dv">1</span>) <span class="sc">*</span> <span class="fl">1.5</span> ), <span class="dv">0</span>))</span>
@@ -672,6 +682,7 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <p>To avoid the problems with the TWFE specification above, we can instead use the approach recently developed by Callaway and Sant’Anna that estimates the average treatment effect on the treated (<span class="math inline">\(ATT\)</span>) for each treated group <span class="math inline">\(g\)</span> at each time <span class="math inline">\(t\)</span>, i.e., <span class="math inline">\(ATT(g,t)\)</span>, where groups are defined according to when they were first treated. The group-time specific estimates of each <span class="math inline">\(ATT(g,t)\)</span> are estimated via regression on <em>subsets</em> of the data for each group and time periods covering pre- and post-intervention, using the following specification:</p>
 <p><span class="math display">\[Y_{it} = \beta_{0}^{gt} + \beta_{1}^{gt}G + \beta_{2}^{gt}T + \beta_{3}^{gt}(G\times T) + \varepsilon^{gt} \]</span></p>
 <p>where <span class="math inline">\(G\)</span> and <span class="math inline">\(T\)</span> refer to indicators for group and time period and <span class="math inline">\(\beta_{3}^{gt}\)</span> is the <span class="math inline">\(ATT(g,t)\)</span> for each group at a given time. Treated groups are compared to not yet treated groups to estimate group-time specific <span class="math inline">\(ATTs\)</span> , which can be combined to estimate the overall effect of the intervention, as well as dynamic treatment effects.</p>
+<p>The table below compares the estimates from the TWFE model to ‘simple’ aggregate estimate from the CS model. As before, we know that the ‘truth’ here should be something like an average <span class="math inline">\(ATT\)</span> of Note that the TWFE estim</p>
 <div class="cell">
 <details>
 <summary>Code</summary>
@@ -1105,7 +1116,7 @@ window.document.addEventListener("DOMContentLoaded", function (event) {
 <span id="cb8-177"><a href="#cb8-177" aria-hidden="true" tabindex="-1"></a>  y <span class="sc">~</span> <span class="st">`</span><span class="at">rel_year_-5</span><span class="st">`</span> <span class="sc">+</span> <span class="st">`</span><span class="at">rel_year_-4</span><span class="st">`</span> <span class="sc">+</span> <span class="st">`</span><span class="at">rel_year_-3</span><span class="st">`</span> <span class="sc">+</span> </span>
 <span id="cb8-178"><a href="#cb8-178" aria-hidden="true" tabindex="-1"></a>      <span class="st">`</span><span class="at">rel_year_-2</span><span class="st">`</span> <span class="sc">+</span> <span class="st">`</span><span class="at">rel_year_0</span><span class="st">`</span> <span class="sc">+</span> <span class="st">`</span><span class="at">rel_year_1</span><span class="st">`</span> <span class="sc">+</span> </span>
 <span id="cb8-179"><a href="#cb8-179" aria-hidden="true" tabindex="-1"></a>    <span class="st">`</span><span class="at">rel_year_2</span><span class="st">`</span> <span class="sc">+</span> <span class="st">`</span><span class="at">rel_year_3</span><span class="st">`</span> <span class="sc">+</span> <span class="st">`</span><span class="at">rel_year_4</span><span class="st">`</span> <span class="sc">+</span> </span>
-<span id="cb8-180"><a href="#cb8-180" aria-hidden="true" tabindex="-1"></a>    <span class="st">`</span><span class="at">rel_year_5</span><span class="st">`</span> <span class="sc">|</span> state <span class="sc">+</span> year,</span>
+<span id="cb8-180"><a href="#cb8-180" aria-hidden="true" tabindex="-1"></a>    <span class="st">`</span><span class="at">rel_year_5</span><span class="st">`</span> <span class="sc">+</span> <span class="st">`</span><span class="at">rel_year_6</span><span class="st">`</span> <span class="sc">|</span> state <span class="sc">+</span> year,</span>
 <span id="cb8-181"><a href="#cb8-181" aria-hidden="true" tabindex="-1"></a>  <span class="at">data =</span> data,</span>
 <span id="cb8-182"><a href="#cb8-182" aria-hidden="true" tabindex="-1"></a>  <span class="at">vcov =</span> <span class="sc">~</span>state</span>
 <span id="cb8-183"><a href="#cb8-183" aria-hidden="true" tabindex="-1"></a>)</span>
@@ -1127,7 +1138,7 @@ window.document.addEventListener("DOMContentLoaded", function (event) {
 <span id="cb8-199"><a href="#cb8-199" aria-hidden="true" tabindex="-1"></a><span class="co"># plot of estimates</span></span>
 <span id="cb8-200"><a href="#cb8-200" aria-hidden="true" tabindex="-1"></a>pt <span class="ot">&lt;-</span> <span class="fu">get_estimates</span>(twfe_event) <span class="sc">%&gt;%</span></span>
 <span id="cb8-201"><a href="#cb8-201" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(term, estimate, conf.low, conf.high) <span class="sc">%&gt;%</span></span>
-<span id="cb8-202"><a href="#cb8-202" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">t =</span> <span class="fu">c</span>(<span class="sc">-</span><span class="dv">5</span><span class="sc">:-</span><span class="dv">2</span>, <span class="dv">0</span><span class="sc">:</span><span class="dv">5</span>)) <span class="sc">%&gt;%</span></span>
+<span id="cb8-202"><a href="#cb8-202" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">t =</span> <span class="fu">c</span>(<span class="sc">-</span><span class="dv">5</span><span class="sc">:-</span><span class="dv">2</span>, <span class="dv">0</span><span class="sc">:</span><span class="dv">6</span>)) <span class="sc">%&gt;%</span></span>
 <span id="cb8-203"><a href="#cb8-203" aria-hidden="true" tabindex="-1"></a>  <span class="fu">bind_rows</span>(<span class="fu">tibble</span>(<span class="at">t =</span> <span class="sc">-</span><span class="dv">1</span>, <span class="at">estimate =</span> <span class="dv">0</span>, </span>
 <span id="cb8-204"><a href="#cb8-204" aria-hidden="true" tabindex="-1"></a>    <span class="at">conf.low =</span> <span class="dv">0</span>, <span class="at">conf.high =</span> <span class="dv">0</span>, <span class="at">term =</span> <span class="st">"rel_year_-1"</span>)) <span class="sc">%&gt;%</span></span>
 <span id="cb8-205"><a href="#cb8-205" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">true_tau =</span> <span class="fu">ifelse</span>(t <span class="sc">&gt;=</span> <span class="dv">0</span>, ((t <span class="sc">+</span> <span class="dv">1</span>) <span class="sc">*</span> <span class="fl">1.5</span> ), <span class="dv">0</span>))</span>
@@ -1164,35 +1175,37 @@ window.document.addEventListener("DOMContentLoaded", function (event) {
 <span id="cb8-236"><a href="#cb8-236" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb8-237"><a href="#cb8-237" aria-hidden="true" tabindex="-1"></a>where $G$ and $T$ refer to indicators for group and time period and $\beta_{3}^{gt}$ is the $ATT(g,t)$ for each group at a given time. Treated groups are compared to not yet treated groups to estimate group-time specific $ATTs$ , which can be combined to estimate the overall effect of the intervention, as well as dynamic treatment effects. </span>
 <span id="cb8-238"><a href="#cb8-238" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-239"><a href="#cb8-239" aria-hidden="true" tabindex="-1"></a><span class="in">```{r cs, message=FALSE, warning=FALSE}</span></span>
-<span id="cb8-240"><a href="#cb8-240" aria-hidden="true" tabindex="-1"></a><span class="co"># Callaway-Sant'Anna</span></span>
-<span id="cb8-241"><a href="#cb8-241" aria-hidden="true" tabindex="-1"></a>cs <span class="ot">&lt;-</span> did<span class="sc">::</span><span class="fu">att_gt</span>(<span class="at">yname =</span> <span class="st">"y"</span>, </span>
-<span id="cb8-242"><a href="#cb8-242" aria-hidden="true" tabindex="-1"></a>                  <span class="at">tname =</span> <span class="st">"year"</span>,</span>
-<span id="cb8-243"><a href="#cb8-243" aria-hidden="true" tabindex="-1"></a>                  <span class="at">idname =</span> <span class="st">"unit"</span>,</span>
-<span id="cb8-244"><a href="#cb8-244" aria-hidden="true" tabindex="-1"></a>                  <span class="at">gname =</span> <span class="st">"cohort_year"</span>,</span>
-<span id="cb8-245"><a href="#cb8-245" aria-hidden="true" tabindex="-1"></a>                  <span class="at">control_group=</span> <span class="st">"notyettreated"</span>,</span>
-<span id="cb8-246"><a href="#cb8-246" aria-hidden="true" tabindex="-1"></a>                  <span class="at">bstrap =</span> <span class="cn">TRUE</span>,</span>
-<span id="cb8-247"><a href="#cb8-247" aria-hidden="true" tabindex="-1"></a>                  <span class="at">clustervars =</span> <span class="st">"state"</span>,</span>
-<span id="cb8-248"><a href="#cb8-248" aria-hidden="true" tabindex="-1"></a>                  <span class="at">data =</span> d,</span>
-<span id="cb8-249"><a href="#cb8-249" aria-hidden="true" tabindex="-1"></a>                  <span class="at">print_details =</span> <span class="cn">FALSE</span>)</span>
-<span id="cb8-250"><a href="#cb8-250" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-251"><a href="#cb8-251" aria-hidden="true" tabindex="-1"></a>cs_simple <span class="ot">&lt;-</span> did<span class="sc">::</span><span class="fu">aggte</span>(cs, <span class="at">type =</span> <span class="st">"simple"</span>)</span>
-<span id="cb8-252"><a href="#cb8-252" aria-hidden="true" tabindex="-1"></a>cs_event <span class="ot">&lt;-</span> did<span class="sc">::</span><span class="fu">aggte</span>(cs, <span class="at">type =</span> <span class="st">"dynamic"</span>)</span>
-<span id="cb8-253"><a href="#cb8-253" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-254"><a href="#cb8-254" aria-hidden="true" tabindex="-1"></a><span class="co"># wrangle aggregate ATTs for model summary table</span></span>
-<span id="cb8-255"><a href="#cb8-255" aria-hidden="true" tabindex="-1"></a>ti <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
-<span id="cb8-256"><a href="#cb8-256" aria-hidden="true" tabindex="-1"></a>  <span class="at">term =</span> <span class="st">"treat"</span>,</span>
-<span id="cb8-257"><a href="#cb8-257" aria-hidden="true" tabindex="-1"></a>  <span class="at">estimate =</span> cs_simple<span class="sc">$</span>overall.att,</span>
-<span id="cb8-258"><a href="#cb8-258" aria-hidden="true" tabindex="-1"></a>  <span class="at">std.error =</span> cs_simple<span class="sc">$</span>overall.se)</span>
-<span id="cb8-259"><a href="#cb8-259" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-260"><a href="#cb8-260" aria-hidden="true" tabindex="-1"></a>gl <span class="ot">&lt;-</span> <span class="fu">data.frame</span>()</span>
+<span id="cb8-239"><a href="#cb8-239" aria-hidden="true" tabindex="-1"></a>The table below compares the estimates from the TWFE model to 'simple' aggregate estimate from the CS model. As before, we know that the 'truth' here should be something like an average $ATT$ of Note that the TWFE estim</span>
+<span id="cb8-240"><a href="#cb8-240" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-241"><a href="#cb8-241" aria-hidden="true" tabindex="-1"></a><span class="in">```{r cs, message=FALSE, warning=FALSE}</span></span>
+<span id="cb8-242"><a href="#cb8-242" aria-hidden="true" tabindex="-1"></a><span class="co"># Callaway-Sant'Anna</span></span>
+<span id="cb8-243"><a href="#cb8-243" aria-hidden="true" tabindex="-1"></a>cs <span class="ot">&lt;-</span> did<span class="sc">::</span><span class="fu">att_gt</span>(<span class="at">yname =</span> <span class="st">"y"</span>, </span>
+<span id="cb8-244"><a href="#cb8-244" aria-hidden="true" tabindex="-1"></a>                  <span class="at">tname =</span> <span class="st">"year"</span>,</span>
+<span id="cb8-245"><a href="#cb8-245" aria-hidden="true" tabindex="-1"></a>                  <span class="at">idname =</span> <span class="st">"unit"</span>,</span>
+<span id="cb8-246"><a href="#cb8-246" aria-hidden="true" tabindex="-1"></a>                  <span class="at">gname =</span> <span class="st">"cohort_year"</span>,</span>
+<span id="cb8-247"><a href="#cb8-247" aria-hidden="true" tabindex="-1"></a>                  <span class="at">control_group=</span> <span class="st">"notyettreated"</span>,</span>
+<span id="cb8-248"><a href="#cb8-248" aria-hidden="true" tabindex="-1"></a>                  <span class="at">bstrap =</span> <span class="cn">TRUE</span>,</span>
+<span id="cb8-249"><a href="#cb8-249" aria-hidden="true" tabindex="-1"></a>                  <span class="at">clustervars =</span> <span class="st">"state"</span>,</span>
+<span id="cb8-250"><a href="#cb8-250" aria-hidden="true" tabindex="-1"></a>                  <span class="at">data =</span> d,</span>
+<span id="cb8-251"><a href="#cb8-251" aria-hidden="true" tabindex="-1"></a>                  <span class="at">print_details =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb8-252"><a href="#cb8-252" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-253"><a href="#cb8-253" aria-hidden="true" tabindex="-1"></a>cs_simple <span class="ot">&lt;-</span> did<span class="sc">::</span><span class="fu">aggte</span>(cs, <span class="at">type =</span> <span class="st">"simple"</span>)</span>
+<span id="cb8-254"><a href="#cb8-254" aria-hidden="true" tabindex="-1"></a>cs_event <span class="ot">&lt;-</span> did<span class="sc">::</span><span class="fu">aggte</span>(cs, <span class="at">type =</span> <span class="st">"dynamic"</span>)</span>
+<span id="cb8-255"><a href="#cb8-255" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-256"><a href="#cb8-256" aria-hidden="true" tabindex="-1"></a><span class="co"># wrangle aggregate ATTs for model summary table</span></span>
+<span id="cb8-257"><a href="#cb8-257" aria-hidden="true" tabindex="-1"></a>ti <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
+<span id="cb8-258"><a href="#cb8-258" aria-hidden="true" tabindex="-1"></a>  <span class="at">term =</span> <span class="st">"treat"</span>,</span>
+<span id="cb8-259"><a href="#cb8-259" aria-hidden="true" tabindex="-1"></a>  <span class="at">estimate =</span> cs_simple<span class="sc">$</span>overall.att,</span>
+<span id="cb8-260"><a href="#cb8-260" aria-hidden="true" tabindex="-1"></a>  <span class="at">std.error =</span> cs_simple<span class="sc">$</span>overall.se)</span>
 <span id="cb8-261"><a href="#cb8-261" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-262"><a href="#cb8-262" aria-hidden="true" tabindex="-1"></a>cs_avg <span class="ot">&lt;-</span> <span class="fu">list</span>(<span class="at">tidy =</span> ti, <span class="at">glance =</span> gl)</span>
-<span id="cb8-263"><a href="#cb8-263" aria-hidden="true" tabindex="-1"></a><span class="fu">class</span>(cs_avg) <span class="ot">&lt;-</span> <span class="st">"modelsummary_list"</span></span>
-<span id="cb8-264"><a href="#cb8-264" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-265"><a href="#cb8-265" aria-hidden="true" tabindex="-1"></a><span class="fu">modelsummary</span>(<span class="fu">list</span>(<span class="st">"TWFE"</span> <span class="ot">=</span> twfe, <span class="st">"Callaway"</span> <span class="ot">=</span> cs_avg),</span>
-<span id="cb8-266"><a href="#cb8-266" aria-hidden="true" tabindex="-1"></a>  <span class="at">gof_omit =</span><span class="st">'_*'</span>)</span>
-<span id="cb8-267"><a href="#cb8-267" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb8-262"><a href="#cb8-262" aria-hidden="true" tabindex="-1"></a>gl <span class="ot">&lt;-</span> <span class="fu">data.frame</span>()</span>
+<span id="cb8-263"><a href="#cb8-263" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-264"><a href="#cb8-264" aria-hidden="true" tabindex="-1"></a>cs_avg <span class="ot">&lt;-</span> <span class="fu">list</span>(<span class="at">tidy =</span> ti, <span class="at">glance =</span> gl)</span>
+<span id="cb8-265"><a href="#cb8-265" aria-hidden="true" tabindex="-1"></a><span class="fu">class</span>(cs_avg) <span class="ot">&lt;-</span> <span class="st">"modelsummary_list"</span></span>
+<span id="cb8-266"><a href="#cb8-266" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-267"><a href="#cb8-267" aria-hidden="true" tabindex="-1"></a><span class="fu">modelsummary</span>(<span class="fu">list</span>(<span class="st">"TWFE"</span> <span class="ot">=</span> twfe, <span class="st">"Callaway"</span> <span class="ot">=</span> cs_avg),</span>
+<span id="cb8-268"><a href="#cb8-268" aria-hidden="true" tabindex="-1"></a>  <span class="at">gof_omit =</span><span class="st">'_*'</span>)</span>
+<span id="cb8-269"><a href="#cb8-269" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div></div></div></div></div>
 </div> <!-- /content -->
 
