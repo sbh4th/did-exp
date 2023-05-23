@@ -6,6 +6,7 @@ format:
   html:
     code-tools: true
     code-fold: true
+bibliography: did-exp.bib
 ---
 
 # Setup 
@@ -74,7 +75,7 @@ d <- expand_grid(unit = 1:1000, year = 2011:2020) %>%
 
 For this example we will use a simulated example.^[This section borrows heavily from Brantly Callaway's excellent [vignette](https://bcallaway11.github.io/did/articles/TWFE.html) on the dangers of using Two-Way Fixed Effects (TWFE) in the context of staggered treatments.] For the time being, we are ignoring covariates. 
 
-We are simulating a staggered treatment setup where 30 'clusters', which could be countries, villages, states, etc., but in this case we will use states ($state = \{1,2,\dots,30\}$), which are randomly assigned into 3 treatment groups depending on the treatment starting year (2014, 2016, never treated). We denote the treatment starting period as $g$ that encompasses the 3 groups (i.e., $g \in \{ 2014, 2016, \text{-Inf}\}$), where $\text{-Inf}$ indicates the never treated group (following Callaway/Sant'Anna here such that $g = \infty$ for a never-treated group). We have 1000 units spread out over the 30 clusters, which could be individuals, schools, hospitals, or some other smaller units $i$, which are randomly assigned to one of the 30 states. Let $G_i$ indicates the group/cohort unit $i$ belongs to, i.e., $G \subseteq \{ 2014, 2016, \infty\}$.
+We are simulating a staggered treatment setup where 30 'clusters', which could be countries, villages, states, etc., but in this case we will use states ($state = \{1,2,\dots,30\}$), which are randomly assigned into 3 treatment groups depending on the treatment starting year (2014, 2016, never treated). We denote the treatment starting period as $g$ that encompasses the 3 groups (i.e., $g \in \{ 2014, 2016, \text{-Inf}\}$), where $\text{-Inf}$ indicates the never treated group (following @{Callaway:2021aa} here such that $g = \infty$ for a never-treated group). We have 1000 units spread out over the 30 clusters, which could be individuals, schools, hospitals, or some other smaller units $i$, which are randomly assigned to one of the 30 states. Let $G_i$ indicates the group/cohort unit $i$ belongs to, i.e., $G \subseteq \{ 2014, 2016, \infty\}$.
 
 The data generating process (DGP) for the outcome $Y$ is: 
 $$Y_{it} = (2020-g) + \alpha_i + \beta_t + \tau_{it} + \epsilon_{it}$$
@@ -193,7 +194,7 @@ modelsummary(list("TWFE" = twfe,
   gof_omit ='DF|Deviance|R2|AIC|BIC|Log.Lik|ICC|RMSE')
 ```
 
-How well do the event study coefficients map on to our true estimates from the DGP? Below we show a plot of the true effects based on the simulated data, as well as the estimates from the event study. The answer is: okay? A number of the TWFE estimates are sensible in the early post period, but further out. More importantly, not only are the TWFE event-study estimate incorrect in the later post period, they also suggest some evidence for non-parallel trends in the pre-period, which, in the before times, might lead one to think the parallel trends assumption is violated, which we know is not the case here since we forced the model to be parallel in the pre period [some text on intuition for this would be helpful here].
+How well do the event study coefficients map on to our true estimates from the DGP? Below we show a plot of the true effects based on the simulated data, as well as the estimates from the event study. The answer is: okay? A number of the TWFE estimates are sensible in the early post period, but further out. More importantly, not only are the TWFE event-study estimate incorrect in the later post period, they also suggest some evidence for non-parallel trends in the pre-period, which, in the before times, might lead one to think the parallel trends assumption is violated, which we know is not the case here since we forced the model to be parallel in the pre period [some text on intuition for this would be helpful here].^[This [post](https://andrewcbaker.netlify.app/2020/06/27/how-to-create-relative-time-indicators/#) by Andrew Baker suggests to me that fully saturating this model with all of the relative time indicators may work, but binning the ends if you have a longer series creates problems.]
 
 ```{r esp, cache=TRUE, message = FALSE, warning=FALSE}
 # plot of estimates
@@ -230,13 +231,13 @@ plot_es
 
 ## Callaway-Sant'Anna
 
-To avoid the problems with the TWFE specification above, we can instead use the approach recently developed by Callaway and Sant’Anna that estimates the average treatment effect on the treated ($ATT$) for each treated group $g$ at each time $t$, i.e., $ATT(g,t)$, where groups are defined according to when they were first treated. The group-time specific estimates of each $ATT(g,t)$ are estimated via regression on *subsets* of the data for each group and time periods covering pre- and post-intervention, using the following specification:
+To avoid the problems with the TWFE specification above, we can instead use the approach recently developed by @{Callaway:2021aa} that estimates the average treatment effect on the treated ($ATT$) for each treated group $g$ at each time $t$, i.e., $ATT(g,t)$, where groups are defined according to when they were first treated. The group-time specific estimates of each $ATT(g,t)$ are estimated via regression on *subsets* of the data for each group and time periods covering pre- and post-intervention, using the following specification:
 
 $$Y_{it} = \beta_{0}^{gt} + \beta_{1}^{gt}G + \beta_{2}^{gt}T + \beta_{3}^{gt}(G\times T) + \varepsilon^{gt} $$
 
 where $G$ and $T$ refer to indicators for group and time period and $\beta_{3}^{gt}$ is the $ATT(g,t)$ for each group at a given time. Treated groups are compared to not yet treated groups to estimate group-time specific $ATTs$ , which can be combined to estimate the overall effect of the intervention, as well as dynamic treatment effects. 
 
-The table below compares the estimates from the TWFE model to 'simple' aggregate estimate from the CS model. As before, we know that the 'truth' here should be something like an average $ATT$ of 6. The TWFE estimate is wrong and around 3.5, where as the CS estimate is 5.9, about what it should be.
+The table below compares the estimates from the TWFE model to 'simple' aggregate estimate from the CS model. As before, we know that the 'truth' here should be something like an average $ATT$ of 6. The TWFE estimate is wrong and biased downwards to around 3.5, where as the CS estimate is 5.9, about what it should be.
 
 ```{r cs, message=FALSE, warning=FALSE}
 # Callaway-Sant'Anna
@@ -268,3 +269,21 @@ modelsummary(list("TWFE" = twfe, "Callway-Sant'Anna" = cs_avg),
   gof_omit ='_*')
 ```
 
+## 'Extended' TWFE
+
+In a recent paper @{Wooldridge:2021aa} demonstrated that the issue we saw with the TWFE model above is not a problem with the TWFE model *per se*, only the way that it is specified. In particular, he notes that one can recover nearly identical $ATT(g,t)$ estimates from the linear TWFE model by including a set of interactive fixed effects between treated cohorts and time since treatment. 
+
+## Estimation in Stata
+```{r st}
+# Similar setup for Stata
+library(RStata)
+options("RStata.StataVersion" = 16)
+options("RStata.StataPath"= '/Applications/Stata/StataMP.app/Contents/MacOS/stata-mp')
+
+s_twfe <- '
+qui xtreg y i.treat i.year, i(state) fe vce(cluster state) cformat(%4.3f)
+estimates store xttwfe
+estimates table xttwfe, b se keep(1.treat)
+'
+stata(s_twfe, data.in=d)
+```
