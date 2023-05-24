@@ -1,7 +1,7 @@
 ---
 title: "Difference-in-Differences with Heterogenous Treatment Effects"
 author: Sam Harper
-date: 2023-05-19
+date: 2023-05-24
 format: 
   html:
     code-tools: true
