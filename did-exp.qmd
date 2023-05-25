@@ -6,8 +6,6 @@ format:
   html:
     code-tools: true
     code-fold: true
-    embed-resources: true
-    self-contained-math: true
 bibliography: did-exp.bib
 ---
 
