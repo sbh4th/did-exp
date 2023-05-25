@@ -415,16 +415,16 @@ In contrast to the `did` package (or `csdid` in Stata) from CS that automaticall
 # Marginal effect for ETWFE (simple)
 me_avg <- slopes(
   etwfe, 
-  newdata   = subset(d, treat),
+  newdata   = subset(d, treat==1),
   variables = "treat", 
   by        = "treat"
   )
 
 # wrangle aggregate ATTs for model summary table
 ti <- data.frame(
-  term = paste("ATT(", me_avg$term[2], ")", sep = ""),
-  estimate = me_avg$estimate[2],
-  std.error = me_avg$std.error[2])
+  term = paste("ATT(", me_avg$term, ")", sep = ""),
+  estimate = me_avg$estimate,
+  std.error = me_avg$std.error)
 
 gl <- data.frame()
 
