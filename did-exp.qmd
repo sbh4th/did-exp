@@ -192,6 +192,8 @@ rename_rt <- function(old_names) {
 modelsummary(list("TWFE" = twfe, 
   "TWFE:Event study" = twfe_event),
   coef_rename = rename_rt,
+  shape = term ~ model + statistic, 
+  statistic = c("({std.error})", "conf.int"), fmt=2,
   gof_omit ='DF|Deviance|R2|AIC|BIC|Log.Lik|ICC|RMSE')
 ```
 
@@ -261,7 +263,9 @@ cs_event <- did::aggte(cs, type = "dynamic")
 ti <- data.frame(
   term = "treat",
   estimate = cs_simple$overall.att,
-  std.error = cs_simple$overall.se)
+  std.error = cs_simple$overall.se,
+  conf.low = cs_simple$overall.att - 1.96*cs_simple$overall.se,
+  conf.high = cs_simple$overall.att + 1.96*cs_simple$overall.se)
 
 gl <- data.frame()
 
@@ -269,6 +273,8 @@ cs_avg <- list(tidy = ti, glance = gl)
 class(cs_avg) <- "modelsummary_list"
 
 modelsummary(list("TWFE" = twfe, "Callway-Sant'Anna" = cs_avg),
+  shape = term ~ model + statistic, 
+  statistic = c("({std.error})", "conf.int"),
   gof_omit ='_*')
 ```
 
@@ -282,14 +288,30 @@ Estimating each group-time ATT in the CS way also allows several different ways 
 cs_event <- did::aggte(cs, type = "dynamic")
 
 modelsummary(list("CS: Dynamic" = cs_event),
+  shape = term ~ model + statistic, 
+  statistic = c("({std.error})", "conf.int"),
   gof_omit ='_*')
 ```
 
 ### Group
 ```{r csg, message=FALSE, warning = FALSE}
 cs_group <- did::aggte(cs, type = "group")
+cs_group2 <- get_estimates(cs_group)
+tig <- data.frame(
+  term = cs_group2$term,
+  estimate = cs_group2$estimate,
+  std.error = cs_group2$std.error,
+  conf.low = cs_group2$conf.low,
+  conf.high = cs_group2$conf.high)
 
-modelsummary(list("CS: Group" = cs_group),
+glg <- data.frame()
+
+cs_group3 <- list(tidy = tig, glance = glg)
+class(cs_group3) <- "modelsummary_list"
+
+modelsummary(list("CS: Group" = cs_group3),
+  shape = term ~ model + statistic, 
+  statistic = c("({std.error})", "conf.int"),
   gof_omit ='_*')
 
 ```
@@ -299,6 +321,8 @@ modelsummary(list("CS: Group" = cs_group),
 cs_cal <- did::aggte(cs, type = "calendar")
 
 modelsummary(list("CS: Calendar" = cs_cal),
+  shape = term ~ model + statistic, 
+  statistic = c("({std.error})", "conf.int"),
   gof_omit ='_*')
 
 ```
@@ -424,7 +448,9 @@ me_avg <- slopes(
 ti <- data.frame(
   term = paste("ATT(", me_avg$term, ")", sep = ""),
   estimate = me_avg$estimate,
-  std.error = me_avg$std.error)
+  std.error = me_avg$std.error,
+  conf.low = me_avg$estimate - 1.96*me_avg$std.error,
+  conf.high = me_avg$estimate + 1.96*me_avg$std.error)
 
 gl <- data.frame()
 
@@ -432,6 +458,8 @@ etwfe_me_avg <- list(tidy = ti, glance = gl)
 class(etwfe_me_avg) <- "modelsummary_list"
 
 modelsummary(list("Simple Average" = etwfe_me_avg),
+  shape = term ~ model + statistic, 
+  statistic = c("({std.error})", "conf.int"),
   gof_omit ='._*')
 
 ```
@@ -451,12 +479,16 @@ me_c <- slopes(
 ti_c <- data.frame(
   term = paste("ATT(g", me_c$cohort_year, ")", sep=""), 
   estimate = me_c$estimate, 
-  std.error = me_c$std.error)
+  std.error = me_c$std.error,
+  conf.low = me_c$estimate - 1.96*me_c$std.error,
+  conf.high = me_c$estimate + 1.96*me_c$std.error)
 
 etwfe_me_c <- list(tidy = ti_c, glance = gl)
 class(etwfe_me_c) <- "modelsummary_list"
 
 modelsummary(list("By cohort" = etwfe_me_c),
+  shape = term ~ model + statistic, 
+  statistic = c("({std.error})", "conf.int"),
   gof_omit ='._*')
 
 ```
@@ -476,12 +508,16 @@ me_t <- slopes(
 ti_t <- data.frame(
   term = paste("ATT(", me_t$year, ")", sep=""), 
   estimate = me_t$estimate, 
-  std.error = me_t$std.error)
+  std.error = me_t$std.error,
+  conf.low = me_t$estimate - 1.96*me_t$std.error,
+  conf.high = me_t$estimate + 1.96*me_t$std.error)
 
 etwfe_me_t <- list(tidy = ti_t, glance = gl)
 class(etwfe_me_t) <- "modelsummary_list"
 
 modelsummary(list("By year" = etwfe_me_t),
+  shape = term ~ model + statistic, 
+  statistic = c("({std.error})", "conf.int"),
   gof_omit ='._*')
 
 ```
@@ -505,12 +541,16 @@ me_e <- slopes(
 ti_e <- data.frame(
   term = paste("ATT(", me_e$event, ")", sep=""), 
   estimate = me_e$estimate, 
-  std.error = me_e$std.error)
+  std.error = me_e$std.error,
+  conf.low = me_e$estimate - 1.96*me_e$std.error,
+  conf.high = me_e$estimate + 1.96*me_e$std.error)
 
 etwfe_me_e <- list(tidy = ti_e, glance = gl)
 class(etwfe_me_e) <- "modelsummary_list"
 
 modelsummary(list("Event study" = etwfe_me_e),
+  shape = term ~ model + statistic, 
+  statistic = c("({std.error})", "conf.int"),
   gof_omit ='._*')
 
 ```
