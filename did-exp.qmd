@@ -4,9 +4,8 @@ author: Sam Harper
 date: 2023-05-24
 format: 
   html:
-    code-tools: true
+    theme: materia
     code-fold: true
-    html-math-method: mathjax
 bibliography: did-exp.bib
 ---
 
