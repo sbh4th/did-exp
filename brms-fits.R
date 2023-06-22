@@ -39,3 +39,7 @@ b1 <-
       iter = 2000, warmup = 1000, chains = 4, cores = 4,
       sample_prior = "yes")
 
+b1a <- update(b1,
+         prior = c(prior(normal(0, 1.5), class = Intercept),
+                  prior(normal(0, 0.5), class = b),                                         prior(exponential(1), class = sd)))
+
