@@ -1800,10 +1800,10 @@ div.csl-indent {
 <h2 class="anchored" data-anchor-id="bayesian-implementation">Bayesian implementation</h2>
 <p>All of the previous analyses use a frequentist lens for inference, but given the basic ETWFE setup by Wooldridge, it’s also straightforward to put this kind of analysis into a Bayesian framework.<a href="#fn3" class="footnote-ref" id="fnref3" role="doc-noteref"><sup>3</sup></a></p>
 <p>Below are the results from 3 different sets of ETWFE models. The first is a straightforward model with uninformative priors, i.e., <span class="math inline">\(N(0,100)\)</span> for all parameters, and without accounting for state-level variation or fixed effects. The second uses similar priors, but is implemented as a multilevel model with random effects at the state level. Last is a model with more sensible priors. Since this is a completely fictitious example, using informative priors doesn’t make a lot of sense, but just for kicks, let’s tighten up the range of plausible values for the prior. If we use something like <span class="math inline">\(N(0,5)\)</span> we now place 95% of the prior distribution between -10 and +10.</p>
-<div class="cell">
+<div class="cell" data-hash="did-exp_cache/html/betwfe_eaaa9148e09f44b0479fbffc9f2301ed">
 <details>
 <summary>Code</summary>
-<div class="sourceCode cell-code" id="cb17"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="co"># load the brms fitted model</span></span>
+<div class="sourceCode cell-code" id="cb17"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="co"># load the brms fitted models</span></span>
 <span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a>bm1 <span class="ot">&lt;-</span> <span class="fu">readRDS</span>(<span class="fu">here</span>(<span class="st">"code/fits"</span>, <span class="st">"brms-fe.rds"</span>))</span>
 <span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a>bm2 <span class="ot">&lt;-</span> <span class="fu">readRDS</span>(<span class="fu">here</span>(<span class="st">"code/fits"</span>, <span class="st">"brms-re-flat.rds"</span>))</span>
 <span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a>bm3 <span class="ot">&lt;-</span> <span class="fu">readRDS</span>(<span class="fu">here</span>(<span class="st">"code/fits"</span>, <span class="st">"brms-re-inf.rds"</span>))</span>
@@ -1932,9 +1932,11 @@ div.csl-indent {
 
 </div>
 </div>
+<p>As can be seen from the table above, the Bayesian implementation produces estimates quite similar to the frequentist ETWFE and CS models. The model with informative priors reduces the standard errors by a small amount, but given the size of the dataset, informative priors are unlikely to have a large impact on either the point estimates or measures of uncertainty, unless they contain a lot of information.</p>
 <section id="bayesian-marginal-effects" class="level3">
 <h3 class="anchored" data-anchor-id="bayesian-marginal-effects">Bayesian marginal effects</h3>
 <p>Getting the marginal effects for different kinds of aggregate ATTs proceeds similarly as above. We use the <code>marginaleffects</code> package with the <code>slopes</code> function to calculate simple, cohort, calendar, and dynamic effects as we did above. To make this process easier, we refit the model in the format above and included the <code>treat</code> variable in creating the saturated product terms. Just to note here also that it made a big difference how these product terms were specified in the <code>brms</code> specification. Using a more traditional <code>x*y*z</code> method that generates all of the two-way product terms (i.e., <code>x*y</code>, <code>y*z</code>, etc.) led to significant slowdowns in the model estimation time and coefficients on the 3-way terms between <code>treat</code>, <code>cohort_year</code> and <code>year</code> that were different from the ETWFE models above. However, using the <code>brms</code> specification of <code>x:y:z</code> just generates the 3-way terms without all of the 2-way terms and gives nearly identical results, as well as being much easier to use for estimating marginal effects.</p>
+<p>The tables below provide marginal estimates for each of the different kinds of aggregated ATTs, and the frequentist estimates are also included for comparison.</p>
 <div class="panel-tabset">
 <ul class="nav nav-tabs" role="tablist"><li class="nav-item" role="presentation"><a class="nav-link active" id="tabset-3-1-tab" data-bs-toggle="tab" data-bs-target="#tabset-3-1" role="tab" aria-controls="tabset-3-1" aria-selected="true" href="">Simple</a></li><li class="nav-item" role="presentation"><a class="nav-link" id="tabset-3-2-tab" data-bs-toggle="tab" data-bs-target="#tabset-3-2" role="tab" aria-controls="tabset-3-2" aria-selected="false" href="">Cohort</a></li><li class="nav-item" role="presentation"><a class="nav-link" id="tabset-3-3-tab" data-bs-toggle="tab" data-bs-target="#tabset-3-3" role="tab" aria-controls="tabset-3-3" aria-selected="false" href="">Calendar Time</a></li><li class="nav-item" role="presentation"><a class="nav-link" id="tabset-3-4-tab" data-bs-toggle="tab" data-bs-target="#tabset-3-4" role="tab" aria-controls="tabset-3-4" aria-selected="false" href="">Dynamic</a></li></ul>
 <div class="tab-content">
@@ -2377,7 +2379,7 @@ div.csl-indent {
 </div>
 </div>
 </div>
-<p>In general, it’s good to see that these different estimates of various aggregate ATTs are similar to what one gets from the CS model.</p>
+<p>In general, the marginal estimates from the Bayesian models are effectively the same as from the frequentist models. The standard errors are not uniformly larger or smaller for the Bayesian models.</p>
 </section>
 </section>
 <section id="estimation-in-stata" class="level2">
@@ -2626,7 +2628,7 @@ Wooldridge, Jeffrey M. 2021. <span>“Two-Way Fixed Effects, the Two-Way Mundlak
 <ol>
 <li id="fn1"><p>This section borrows heavily from Brantly Callaway’s excellent <a href="https://bcallaway11.github.io/did/articles/TWFE.html">vignette</a> on the dangers of using Two-Way Fixed Effects (TWFE) in the context of staggered treatments.<a href="#fnref1" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
 <li id="fn2"><p>This <a href="https://andrewcbaker.netlify.app/2020/06/27/how-to-create-relative-time-indicators/#">post</a> by Andrew Baker suggests to me that fully saturating this model with all of the relative time indicators may work, but binning the ends if you have a longer series creates problems.<a href="#fnref2" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
-<li id="fn3"><p>To avoid recompiling and running the <code>brms</code> code to implement the model the code below only works with the fitted model. The <code>brms</code> model code is posted in the repo for this post.<a href="#fnref3" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn3"><p>To avoid recompiling and running the <code>brms</code> code to implement the model the code below only works with the fitted model. The <code>brms</code> model <a href="https://github.com/sbh4th/did-exp/blob/main/code/brms-fits.R">code</a> is posted in the repo for this post.<a href="#fnref3" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
 </ol>
 </section></div></main>
 <!-- /main column -->

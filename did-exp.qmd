@@ -562,7 +562,7 @@ In general, it's good to see that these different estimates of various aggregate
 
 ## Bayesian implementation
 
-All of the previous analyses use a frequentist lens for inference, but given the basic ETWFE setup by Wooldridge, it's also straightforward to put this kind of analysis into a Bayesian framework.^[To avoid recompiling and running the `brms` code to implement the model the code below only works with the fitted model. The `brms` model code is posted in the repo for this post.] 
+All of the previous analyses use a frequentist lens for inference, but given the basic ETWFE setup by Wooldridge, it's also straightforward to put this kind of analysis into a Bayesian framework.^[To avoid recompiling and running the `brms` code to implement the model the code below only works with the fitted model. The `brms` model [code](https://github.com/sbh4th/did-exp/blob/main/code/brms-fits.R) is posted in the repo for this post.] 
 
 Below are the results from 3 different sets of ETWFE models. The first is a straightforward model with uninformative priors, i.e., $N(0,100)$ for all parameters, and without accounting for state-level variation or fixed effects. The second uses similar priors, but is implemented as a multilevel model with random effects at the state level. Last is a model with more sensible priors. Since this is a completely fictitious example, using informative priors doesn't make a lot of sense, but just for kicks, let's tighten up the range of plausible values for the prior. If we use something like $N(0,5)$ we now place 95% of the prior distribution between -10 and +10. 
 
@@ -597,9 +597,13 @@ modelsummary(list("Fixed only" = bm1,
 
 ```
 
+As can be seen from the table above, the Bayesian implementation produces estimates quite similar to the frequentist ETWFE and CS models. The model with informative priors reduces the standard errors by a small amount, but given the size of the dataset, informative priors are unlikely to have a large impact on either the point estimates or measures of uncertainty, unless they contain a lot of information. 
+
 ### Bayesian marginal effects
 
 Getting the marginal effects for different kinds of aggregate ATTs proceeds similarly as above. We use the `marginaleffects` package with the `slopes` function to calculate simple, cohort, calendar, and dynamic effects as we did above. To make this process easier, we refit the model in the format above and included the `treat` variable in creating the saturated product terms. Just to note here also that it made a big difference how these product terms were specified in the `brms` specification. Using a more traditional `x*y*z` method that generates all of the two-way product terms (i.e., `x*y`, `y*z`, etc.) led to significant slowdowns in the model estimation time and coefficients on the 3-way terms between `treat`, `cohort_year` and `year` that were different from the ETWFE models above. However, using the `brms` specification of `x:y:z` just generates the 3-way terms without all of the 2-way terms and gives nearly identical results, as well as being much easier to use for estimating marginal effects. 
+
+The tables below provide marginal estimates for each of the different kinds of aggregated ATTs, and the frequentist estimates are also included for comparison. 
 
 ::: panel-tabset
 
@@ -746,7 +750,7 @@ modelsummary(list("ETWFE Event Study" = etwfe_me_e,
 
 :::
 
-In general, it's good to see that these different estimates of various aggregate ATTs are similar to what one gets from the CS model.
+In general, the marginal estimates from the Bayesian models are effectively the same as from the frequentist models. The standard errors are not uniformly larger or smaller for the Bayesian models. 
 
 
 ## Estimation in Stata
