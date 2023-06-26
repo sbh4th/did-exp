@@ -2,12 +2,12 @@
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
 
 <meta charset="utf-8">
-<meta name="generator" content="quarto-1.2.280">
+<meta name="generator" content="quarto-1.2.269">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 <meta name="author" content="Sam Harper">
-<meta name="dcterms.date" content="2023-05-24">
+<meta name="dcterms.date" content="2023-06-26">
 
 <title>Difference-in-Differences with Heterogenous Treatment Effects</title>
 <style>
@@ -125,10 +125,38 @@ div.csl-indent {
 
 </head>
 
-<body class="fullcontent">
+<body>
 
 <div id="quarto-content" class="page-columns page-rows-contents page-layout-article">
-
+<div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+  <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">Table of contents</h2>
+   
+  <ul>
+  <li><a href="#setup" id="toc-setup" class="nav-link active" data-scroll-target="#setup">Setup</a>
+  <ul class="collapse">
+  <li><a href="#simulated-data" id="toc-simulated-data" class="nav-link" data-scroll-target="#simulated-data">Simulated data</a></li>
+  <li><a href="#plot-of-simulated-data" id="toc-plot-of-simulated-data" class="nav-link" data-scroll-target="#plot-of-simulated-data">Plot of simulated data</a></li>
+  </ul></li>
+  <li><a href="#estimating-treatment-effects" id="toc-estimating-treatment-effects" class="nav-link" data-scroll-target="#estimating-treatment-effects">Estimating treatment effects</a></li>
+  <li><a href="#two-way-fixed-effects" id="toc-two-way-fixed-effects" class="nav-link" data-scroll-target="#two-way-fixed-effects">Two-way fixed effects</a>
+  <ul class="collapse">
+  <li><a href="#twfe-average" id="toc-twfe-average" class="nav-link" data-scroll-target="#twfe-average">TWFE (average)</a></li>
+  <li><a href="#twfe-dynamic" id="toc-twfe-dynamic" class="nav-link" data-scroll-target="#twfe-dynamic">TWFE (dynamic)</a></li>
+  <li><a href="#callaway-santanna" id="toc-callaway-santanna" class="nav-link" data-scroll-target="#callaway-santanna">Callaway-Sant’Anna</a></li>
+  <li><a href="#extended-twfe" id="toc-extended-twfe" class="nav-link" data-scroll-target="#extended-twfe">‘Extended’ TWFE</a></li>
+  <li><a href="#marginal-effects-from-etwfe" id="toc-marginal-effects-from-etwfe" class="nav-link" data-scroll-target="#marginal-effects-from-etwfe">Marginal effects from ETWFE</a></li>
+  <li><a href="#bayesian-implementation" id="toc-bayesian-implementation" class="nav-link" data-scroll-target="#bayesian-implementation">Bayesian implementation</a>
+  <ul class="collapse">
+  <li><a href="#bayesian-marginal-effects" id="toc-bayesian-marginal-effects" class="nav-link" data-scroll-target="#bayesian-marginal-effects">Bayesian marginal effects</a></li>
+  </ul></li>
+  <li><a href="#estimation-in-stata" id="toc-estimation-in-stata" class="nav-link" data-scroll-target="#estimation-in-stata">Estimation in Stata</a></li>
+  </ul></li>
+  <li><a href="#adding-covariates" id="toc-adding-covariates" class="nav-link" data-scroll-target="#adding-covariates">Adding covariates</a></li>
+  <li><a href="#references" id="toc-references" class="nav-link" data-scroll-target="#references">References</a></li>
+  </ul>
+</nav>
+</div>
 <main class="content" id="quarto-document-content">
 
 <header id="title-block-header" class="quarto-title-block default">
@@ -150,7 +178,7 @@ div.csl-indent {
     <div>
     <div class="quarto-title-meta-heading">Published</div>
     <div class="quarto-title-meta-contents">
-      <p class="date">May 24, 2023</p>
+      <p class="date">June 26, 2023</p>
     </div>
   </div>
   
@@ -447,6 +475,9 @@ div.csl-indent {
 <section id="estimating-treatment-effects" class="level1">
 <h1>Estimating treatment effects</h1>
 <p>Next we show various ways of estimating the treatment effects, starting with the standard two-way fixed effects (TWFE) that has been standard in many diff-in-diffs analyses.</p>
+</section>
+<section id="two-way-fixed-effects" class="level1">
+<h1>Two-way fixed effects</h1>
 <section id="twfe-average" class="level2">
 <h2 class="anchored" data-anchor-id="twfe-average">TWFE (average)</h2>
 <p>The basic model is estimated as:</p>
@@ -648,15 +679,15 @@ div.csl-indent {
    <td style="text-align:center;"> 12.48 </td>
   </tr>
   <tr>
-   <td style="text-align:left;box-shadow: 0px 1px"> Relative time: 6 </td>
-   <td style="text-align:center;box-shadow: 0px 1px">  </td>
-   <td style="text-align:center;box-shadow: 0px 1px">  </td>
-   <td style="text-align:center;box-shadow: 0px 1px">  </td>
-   <td style="text-align:center;box-shadow: 0px 1px">  </td>
-   <td style="text-align:center;box-shadow: 0px 1px"> 14.30 </td>
-   <td style="text-align:center;box-shadow: 0px 1px"> (0.39) </td>
-   <td style="text-align:center;box-shadow: 0px 1px"> 13.51 </td>
-   <td style="text-align:center;box-shadow: 0px 1px"> 15.09 </td>
+   <td style="text-align:left;box-shadow: 0px 1.5px"> Relative time: 6 </td>
+   <td style="text-align:center;box-shadow: 0px 1.5px">  </td>
+   <td style="text-align:center;box-shadow: 0px 1.5px">  </td>
+   <td style="text-align:center;box-shadow: 0px 1.5px">  </td>
+   <td style="text-align:center;box-shadow: 0px 1.5px">  </td>
+   <td style="text-align:center;box-shadow: 0px 1.5px"> 14.30 </td>
+   <td style="text-align:center;box-shadow: 0px 1.5px"> (0.39) </td>
+   <td style="text-align:center;box-shadow: 0px 1.5px"> 13.51 </td>
+   <td style="text-align:center;box-shadow: 0px 1.5px"> 15.09 </td>
   </tr>
   <tr>
    <td style="text-align:left;"> Num.Obs. </td>
@@ -1415,10 +1446,10 @@ div.csl-indent {
    <td style="text-align:center;"> −0.262 </td>
   </tr>
   <tr>
-   <td style="text-align:left;box-shadow: 0px 1px">  </td>
-   <td style="text-align:center;box-shadow: 0px 1px">  </td>
-   <td style="text-align:center;box-shadow: 0px 1px">  </td>
-   <td style="text-align:center;box-shadow: 0px 1px"> (0.168) </td>
+   <td style="text-align:left;box-shadow: 0px 1.5px">  </td>
+   <td style="text-align:center;box-shadow: 0px 1.5px">  </td>
+   <td style="text-align:center;box-shadow: 0px 1.5px">  </td>
+   <td style="text-align:center;box-shadow: 0px 1.5px"> (0.168) </td>
   </tr>
   <tr>
    <td style="text-align:left;"> Num.Obs. </td>
@@ -1569,18 +1600,18 @@ div.csl-indent {
  </thead>
 <tbody>
   <tr>
-   <td style="text-align:left;"> ATT(g2014) </td>
-   <td style="text-align:center;"> 7.984 </td>
-   <td style="text-align:center;"> (0.115) </td>
-   <td style="text-align:center;"> 7.758 </td>
-   <td style="text-align:center;"> 8.210 </td>
-  </tr>
-  <tr>
    <td style="text-align:left;"> ATT(g2016) </td>
    <td style="text-align:center;"> 3.115 </td>
    <td style="text-align:center;"> (0.088) </td>
    <td style="text-align:center;"> 2.943 </td>
    <td style="text-align:center;"> 3.286 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> ATT(g2014) </td>
+   <td style="text-align:center;"> 7.984 </td>
+   <td style="text-align:center;"> (0.115) </td>
+   <td style="text-align:center;"> 7.758 </td>
+   <td style="text-align:center;"> 8.210 </td>
   </tr>
 </tbody>
 </table>
@@ -1634,20 +1665,6 @@ div.csl-indent {
  </thead>
 <tbody>
   <tr>
-   <td style="text-align:left;"> ATT(2014) </td>
-   <td style="text-align:center;"> 1.813 </td>
-   <td style="text-align:center;"> (0.155) </td>
-   <td style="text-align:center;"> 1.509 </td>
-   <td style="text-align:center;"> 2.117 </td>
-  </tr>
-  <tr>
-   <td style="text-align:left;"> ATT(2015) </td>
-   <td style="text-align:center;"> 4.260 </td>
-   <td style="text-align:center;"> (0.183) </td>
-   <td style="text-align:center;"> 3.901 </td>
-   <td style="text-align:center;"> 4.620 </td>
-  </tr>
-  <tr>
    <td style="text-align:left;"> ATT(2016) </td>
    <td style="text-align:center;"> 3.750 </td>
    <td style="text-align:center;"> (0.128) </td>
@@ -1681,6 +1698,20 @@ div.csl-indent {
    <td style="text-align:center;"> (0.141) </td>
    <td style="text-align:center;"> 9.448 </td>
    <td style="text-align:center;"> 10.001 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> ATT(2014) </td>
+   <td style="text-align:center;"> 1.813 </td>
+   <td style="text-align:center;"> (0.155) </td>
+   <td style="text-align:center;"> 1.509 </td>
+   <td style="text-align:center;"> 2.117 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> ATT(2015) </td>
+   <td style="text-align:center;"> 4.260 </td>
+   <td style="text-align:center;"> (0.183) </td>
+   <td style="text-align:center;"> 3.901 </td>
+   <td style="text-align:center;"> 4.620 </td>
   </tr>
 </tbody>
 </table>
@@ -2074,17 +2105,6 @@ div.csl-indent {
  </thead>
 <tbody>
   <tr>
-   <td style="text-align:left;"> ATT(g2014) </td>
-   <td style="text-align:center;"> 7.984 </td>
-   <td style="text-align:center;"> (0.115) </td>
-   <td style="text-align:center;"> 7.758 </td>
-   <td style="text-align:center;"> 8.210 </td>
-   <td style="text-align:center;"> 7.956 </td>
-   <td style="text-align:center;"> (0.110) </td>
-   <td style="text-align:center;"> 7.748 </td>
-   <td style="text-align:center;"> 8.179 </td>
-  </tr>
-  <tr>
    <td style="text-align:left;"> ATT(g2016) </td>
    <td style="text-align:center;"> 3.115 </td>
    <td style="text-align:center;"> (0.088) </td>
@@ -2094,6 +2114,17 @@ div.csl-indent {
    <td style="text-align:center;"> (0.112) </td>
    <td style="text-align:center;"> 2.875 </td>
    <td style="text-align:center;"> 3.315 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> ATT(g2014) </td>
+   <td style="text-align:center;"> 7.984 </td>
+   <td style="text-align:center;"> (0.115) </td>
+   <td style="text-align:center;"> 7.758 </td>
+   <td style="text-align:center;"> 8.210 </td>
+   <td style="text-align:center;"> 7.956 </td>
+   <td style="text-align:center;"> (0.110) </td>
+   <td style="text-align:center;"> 7.748 </td>
+   <td style="text-align:center;"> 8.179 </td>
   </tr>
 </tbody>
 </table>
@@ -2155,28 +2186,6 @@ div.csl-indent {
  </thead>
 <tbody>
   <tr>
-   <td style="text-align:left;"> ATT(2014) </td>
-   <td style="text-align:center;"> 1.813 </td>
-   <td style="text-align:center;"> (0.155) </td>
-   <td style="text-align:center;"> 1.509 </td>
-   <td style="text-align:center;"> 2.117 </td>
-   <td style="text-align:center;"> 1.797 </td>
-   <td style="text-align:center;"> (0.170) </td>
-   <td style="text-align:center;"> 1.463 </td>
-   <td style="text-align:center;"> 2.130 </td>
-  </tr>
-  <tr>
-   <td style="text-align:left;"> ATT(2015) </td>
-   <td style="text-align:center;"> 4.260 </td>
-   <td style="text-align:center;"> (0.183) </td>
-   <td style="text-align:center;"> 3.901 </td>
-   <td style="text-align:center;"> 4.620 </td>
-   <td style="text-align:center;"> 4.243 </td>
-   <td style="text-align:center;"> (0.171) </td>
-   <td style="text-align:center;"> 3.913 </td>
-   <td style="text-align:center;"> 4.584 </td>
-  </tr>
-  <tr>
    <td style="text-align:left;"> ATT(2016) </td>
    <td style="text-align:center;"> 3.750 </td>
    <td style="text-align:center;"> (0.128) </td>
@@ -2230,6 +2239,28 @@ div.csl-indent {
    <td style="text-align:center;"> (0.165) </td>
    <td style="text-align:center;"> 9.374 </td>
    <td style="text-align:center;"> 10.023 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> ATT(2014) </td>
+   <td style="text-align:center;"> 1.813 </td>
+   <td style="text-align:center;"> (0.155) </td>
+   <td style="text-align:center;"> 1.509 </td>
+   <td style="text-align:center;"> 2.117 </td>
+   <td style="text-align:center;"> 1.797 </td>
+   <td style="text-align:center;"> (0.170) </td>
+   <td style="text-align:center;"> 1.463 </td>
+   <td style="text-align:center;"> 2.130 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> ATT(2015) </td>
+   <td style="text-align:center;"> 4.260 </td>
+   <td style="text-align:center;"> (0.183) </td>
+   <td style="text-align:center;"> 3.901 </td>
+   <td style="text-align:center;"> 4.620 </td>
+   <td style="text-align:center;"> 4.243 </td>
+   <td style="text-align:center;"> (0.171) </td>
+   <td style="text-align:center;"> 3.913 </td>
+   <td style="text-align:center;"> 4.584 </td>
   </tr>
 </tbody>
 </table>
@@ -2607,9 +2638,15 @@ treat        |
 </div>
 </div>
 <p>From these models it seems like the basic estimates for the aggregate ATTs are pretty similar for ETWFE and CS implementations.</p>
-<p>Need to add: covariates.</p>
-
 </section>
+</section>
+<section id="adding-covariates" class="level1">
+<h1>Adding covariates</h1>
+<p>Need to add: covariates.</p>
+</section>
+<section id="references" class="level1 unnumbered">
+
+
 </section>
 
 

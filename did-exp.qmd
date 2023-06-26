@@ -1,11 +1,12 @@
 ---
 title: "Difference-in-Differences with Heterogenous Treatment Effects"
 author: Sam Harper
-date: 2023-05-24
+date: 2023-06-26
 format: 
   html:
     theme: materia
     code-fold: true
+    toc: true
 bibliography: did-exp.bib
 ---
 
@@ -133,8 +134,11 @@ plot <- d %>%
 plot 
 ```
 
+
 # Estimating treatment effects
 Next we show various ways of estimating the treatment effects, starting with the standard two-way fixed effects (TWFE) that has been standard in many diff-in-diffs analyses. 
+
+# Two-way fixed effects
 
 ## TWFE (average)
 
@@ -564,6 +568,8 @@ In general, it's good to see that these different estimates of various aggregate
 
 All of the previous analyses use a frequentist lens for inference, but given the basic ETWFE setup by Wooldridge, it's also straightforward to put this kind of analysis into a Bayesian framework.^[To avoid recompiling and running the `brms` code to implement the model the code below only works with the fitted model. The `brms` model [code](https://github.com/sbh4th/did-exp/blob/main/code/brms-fits.R) is posted in the repo for this post.] 
 
+### Estimation
+
 Below are the results from 3 different sets of ETWFE models. The first is a straightforward model with uninformative priors, i.e., $N(0,100)$ for all parameters, and without accounting for state-level variation or fixed effects. The second uses similar priors, but is implemented as a multilevel model with random effects at the state level. Last is a model with more sensible priors. Since this is a completely fictitious example, using informative priors doesn't make a lot of sense, but just for kicks, let's tighten up the range of plausible values for the prior. If we use something like $N(0,5)$ we now place 95% of the prior distribution between -10 and +10. 
 
 ```{r betwfe, warning = FALSE, message = FALSE, cache=T}
@@ -822,4 +828,8 @@ stata(s_etwfe, data.in=dstata)
 
 From these models it seems like the basic estimates for the aggregate ATTs are pretty similar for ETWFE and CS implementations. 
 
+# Adding covariates
+
 Need to add: covariates.
+
+# References
