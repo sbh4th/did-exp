@@ -148,15 +148,6 @@ $$Y_{it} = \alpha_i + \beta_t + \gamma D_{it} + \varepsilon_{it}$$
 where $D_{i,t}$ is a time-varying treatment dummy variable that takes value one if a unit $i$ is treated at time $t$, and $\alpha_{i}$ and $\beta_{t}$ are fixed effects for unit and time, respectively. We implement this below using the `fixest` package and cluster the standard errors at the state level. 
 
 
-```{r est, message=FALSE}
-
-library(fixest)
-library(fastDummies)
-library(modelsummary)
-library(marginaleffects)
-library(did)
-```
-
 ## TWFE (dynamic)
 Many analyses using TWFE also typically implement an 'event study' type analysis as a robustness check, both to see how the treatment effect may evolve over time in the post period and to see whether there may be some evidence of non-parallel trends in the pre-treatment period. We can implement the event-study type model as:
 $$Y_{it} = \alpha_i + \beta_t + \sum_{k\neq-1} \gamma_{k} D_{it} + \varepsilon_{it}$$ 
@@ -164,7 +155,13 @@ where $k$ indicates time indicators relative to first treatment (i.e., $k=-2$ me
 
 Below is a table showing the estimated effects from the TWFE and event-study models. The overall average estimate from the traditional TWFE model is 3.5, which we know isn't correct, since the average effect should be something closer to $\frac{1}{7}\sum_{t=1}^{7} t*(2+1)/2 = 6$ 
 
-```{r es, cache=TRUE}
+```{r es, cache=FALSE}
+# load needed packages
+library(fixest)
+library(fastDummies)
+library(modelsummary)
+library(marginaleffects)
+library(did)
 
 # Estimate TWFE
 twfe = fixest::feols(
@@ -377,7 +374,8 @@ These estimates look good, with no evidence of non-parallel trends in the pre-in
 In a recent paper @{Wooldridge:2021aa} demonstrated that the issue we saw with the TWFE model above is not a problem with the TWFE model *per se*, only the way that it is specified. In particular, he notes that one can recover nearly identical $ATT(g,t)$ estimates from the linear TWFE model by including a set of interactive fixed effects between treated cohorts and time since treatment. This idea has been referred to as 'extended' TWFE, and basically amounts to interacting a time-varying treatment indicator with both the cohort-year indicators and each time period. He uses somewhat different terminology that we will try to adopt here, such that the time-varying treatment indicator is $w_{it}$, cohort dummies indicating treatment at specific times $r$ since the time $q$ the first group is treated, i.e., $d_{r}$ and time period dummies $fs_{t}$ for every possible period $s$ after the first cohort is treated. Putting this together the ETWFE model ends up looking something like this:
 
 $$Y_{it} = \alpha + \sum_{r=q}^{T} \beta_{r} d_{r} + \sum_{s=r}^{T} \gamma_{s} fs_{t}+ \sum_{r=q}^{T} \sum_{s=r}^{T} \tau_{rt} (d_{r} \times fs_{t}) + \varepsilon_{it}$$ 
-Effectively, we are saturating the regression with interactions between treated cohorts and time, such that the $\tau_{rt}$ are estimates of each group-time ATT. Absent constraints this leads to obvious issues of collinearity. Wooldridge notes in his paper that it is possible to drop the coefficients on the pre-treatment years (hence the 'pooling' in his use of the pooled OLS or POLS term), and this is what, in fact the package `fixest` does as well, so it does not, by default, provide any test of pre-trends like the CS method does above. You may notice that there is no time-varying treatment in the equation above, but @{Wooldridge:2021aa} notes in his paper that it is sufficient to use the interactions $d_{ir} \times fs_{t}$ because $w_{it} \times d_{ir} \times fs_{t} = d_{ir} \times fs_{t}$. However, as we will see later the latter form is helpful for estimating marginal effects, which is likely to be helpful in the context of non-linear models.
+
+Effectively, we are saturating the regression with interactions between treated cohorts and time, such that the $\tau_{rt}$ are estimates of each group-time ATT. Absent constraints this leads to obvious issues of collinearity. Wooldridge notes in his paper that it is possible to drop the coefficients on the pre-treatment years (hence the 'pooling' in his use of the pooled OLS or POLS term), and this is what, in fact the package `fixest` does as well, so it does not, by default, provide any test of pre-trends like the CS method does above. You may notice that there is no time-varying treatment in the equation above, but @{Wooldridge:2021aa} notes in his paper that it is sufficient to use the interactions $d_{ir} \times fs_{t}$ because $w_{it} \times d_{ir} \times fs_{t} = d_{ir} \times fs_{t}$. However, as we will see later the latter form is helpful for estimating marginal effects, which is likely to be helpful in the context of non-linear models. 
 
 Interestingly, Wooldridge also notes that when multiple clusters are treated at the same time (e.g, we have 10 states treated in 2014), one can include fixed effects for the treatment cohorts rather than each individual cluster (though the SEs should still be clustered at the state level).
 
@@ -435,7 +433,7 @@ The estimates are similar, though not identical, to those from the CS approach. 
 
 ## Marginal effects from ETWFE
 
-In contrast to the `did` package (or `csdid` in Stata) from CS that automatically provides different aggregated ATTs, with ETWFE we need to do this by hand. The `marginaleffects` package makes this pretty straightforward. The basic idea here is to use the extended TWFE model to generate marginal predictions (and contrasts of marginal predictions) over different combinations of covariates (e.g., simple averaging, groups, time-since-treatment). 
+In contrast to the `did` package (or `csdid` in Stata) from CS that automatically provides different aggregated ATTs, with ETWFE we need to do this by hand.^[It's worth noting that there is an R [package](https://grantmcdermott.com/etwfe/index.html) called `etwfe` by Grant McDermott that is wonderful and was helpful in coding this up. However, I think it is often easier to do it manually to help understand what the package is doing.] The `marginaleffects` package makes this pretty straightforward. The basic idea here is to use the extended TWFE model to generate marginal predictions (and contrasts of marginal predictions) over different combinations of covariates (e.g., simple averaging, groups, time-since-treatment). 
 
 ::: panel-tabset
 
