@@ -778,7 +778,7 @@ dsf <- d %>%
 
 ```
 
-We can just look at a simple average of the mean of $Y_{it} - \hat{Y}_{it}(0)$ 
+We can just look at a simple average of the mean of $Y_{it} - \hat{Y}_{it}(0)$ by treatment status, which gives us the overall ATT. 
 
 ```{r imp-mean}
 

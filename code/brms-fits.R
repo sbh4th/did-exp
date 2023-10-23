@@ -141,5 +141,3 @@ pd %>% select(ends_with("treat")) %>%
     color = cohort, fill = cohort)) + 
     scale_color_brewer(palette = "Set1") +
     stat_slab(.width = .95) + theme_bw()
-
-
