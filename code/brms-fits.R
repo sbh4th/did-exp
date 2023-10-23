@@ -142,3 +142,4 @@ pd %>% select(ends_with("treat")) %>%
     scale_color_brewer(palette = "Set1") +
     stat_slab(.width = .95) + theme_bw()
 
+

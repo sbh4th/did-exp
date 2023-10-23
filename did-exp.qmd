@@ -756,6 +756,163 @@ modelsummary(list("ETWFE Event Study" = etwfe_me_e,
 
 In general, the marginal estimates from the Bayesian models are effectively the same as from the frequentist models. The standard errors are not uniformly larger or smaller for the Bayesian models. 
 
+## Imputation approach
+A couple of recent papers [@Borusyak:2021aa;@Gardner:2022aa] have developed an 'imputation' based approach to DiD with heterogeneous treatment effects. The basic intuition here is to conceptualize the treatment effects as effectively a missing data problem, i.e., what we are trying to do is to impute the counterfactual outcomes for what would have happened to the treated units had they not been treated. 
+
+In the simplest case of DiD without covariates, it turns out that you can do this by running a 'first stage' regression of just unit (or cohort?) and time fixed effects but only for the observations where the treatment has not happened, i.e., $D_{it}=0$. Then, for each observation you effectively subtract out the predicted outcome based only on the fixed effects from the observed outcome values. Then you can construct different averages of those treatment effects. 
+
+For our synthetic dataset, we first run the first stage regression (again, restricted to cohorts and time periods that are prior to treatment), and subtract the observed outcomes from those predicted based on the first stage model. 
+
+```{r fs}
+# first stage regression
+fs <- fixest::feols(y ~ 0 | state + year, 
+  data = subset(d, treat==0), vcov = ~state)
+
+# add predicted values to dataset
+library(modelr)
+dsf <- d %>% 
+  select(y,state,year,treat,cohort_year) %>% 
+  add_predictions(fs) %>% 
+  mutate(y_it = y - pred,
+         event = year - cohort_year)
+
+```
+
+We can just look at a simple average of the mean of $Y_{it} - \hat{Y}_{it}(0)$ 
+
+```{r imp-mean}
+
+# simple means
+dsf %>% group_by(treat) %>%
+  summarise(twfe = mean(y_it))
+```
+
+Now we can run the regression of our difference measure on different sets of covariates to recover the group-time ATTs, and use similar methods as above to get the marginal ATTs of interest. Below is the comparison to the ETWFE estimates for different kinds of aggregate ATTs.
+
+::: panel-tabset
+
+### Simple
+```{r imp_s, message = F}
+imp_s <- fixest::feols(
+  y_it ~ treat -1, data=dsf, vcov= "hetero")
+
+imp_s_me <- slopes(
+  imp_s, 
+  newdata   = subset(dsf, treat==1),
+  variables = "treat", 
+  by        = "treat"
+  )
+
+ti <- data.frame(
+  term = paste("ATT(", imp_s_me$term, ")", sep = ""),
+  estimate = imp_s_me$estimate,
+  std.error = imp_s_me$std.error,
+  conf.low = imp_s_me$estimate - 1.96*imp_s_me$std.error,
+  conf.high = imp_s_me$estimate + 1.96*imp_s_me$std.error)
+
+imp_me_avg <- list(tidy = ti, glance = gl)
+class(imp_me_avg) <- "modelsummary_list"
+
+modelsummary(list("ETWFE Simple Average" = etwfe_me_avg, 
+  "Imputation Simple Average" = imp_me_avg),
+  shape = term ~ model + statistic, 
+  statistic = c("({std.error})", "conf.int"),
+  gof_omit ='._*')
+
+```
+
+### Cohort
+```{r imp_c, message = F}
+imp_c <- fixest::feols(
+  y_it ~ treat*i(cohort_year, ref(Inf)) -1, 
+    data=dsf, vcov= "hetero")
+
+imp_c_me <- slopes(
+  imp_c, 
+  newdata   = subset(dsf, treat & cohort_year),
+  variables = "treat", 
+  by        = "cohort_year"
+  )
+
+ti <- data.frame(
+  term = paste("ATT(g", imp_c_me$cohort_year, ")", sep = ""),
+  estimate = imp_c_me$estimate,
+  std.error = imp_c_me$std.error,
+  conf.low = imp_c_me$estimate - 1.96*imp_c_me$std.error,
+  conf.high = imp_c_me$estimate + 1.96*imp_c_me$std.error)
+
+imp_me_c <- list(tidy = ti, glance = gl)
+class(imp_me_c) <- "modelsummary_list"
+
+modelsummary(list("ETWFE Cohort Average" = etwfe_me_c, 
+  "Imputation Cohort Average" = imp_me_c),
+  shape = term ~ model + statistic, 
+  statistic = c("({std.error})", "conf.int"),
+  gof_omit ='._*')
+
+```
+
+### Calendar Time
+```{r imp_t, message = F}
+imp_t <- fixest::feols(
+  y_it ~ treat*i(year, ref(2011)) -1, 
+    data=dsf, vcov= "hetero")
+
+imp_t_me <- slopes(
+  imp_t, 
+  newdata   = subset(dsf, treat & year>=2014),
+  variables = "treat", 
+  by        = "year"
+  )
+
+ti <- data.frame(
+  term = paste("ATT(", imp_t_me$year, ")", sep = ""),
+  estimate = imp_t_me$estimate,
+  std.error = imp_t_me$std.error,
+  conf.low = imp_t_me$estimate - 1.96*imp_t_me$std.error,
+  conf.high = imp_t_me$estimate + 1.96*imp_t_me$std.error)
+
+imp_me_t <- list(tidy = ti, glance = gl)
+class(imp_me_t) <- "modelsummary_list"
+
+modelsummary(list("ETWFE Time Average" = etwfe_me_t, 
+  "Imputation Time Average" = imp_me_t),
+  shape = term ~ model + statistic, 
+  statistic = c("({std.error})", "conf.int"),
+  gof_omit ='._*')
+
+```
+
+### Dynamic
+```{r imp_e, message = F}
+imp_e <- fixest::feols(
+  y_it ~ i(event, ref = c(-Inf, -1)) -1, 
+    data=dsf, vcov= "hetero")
+
+imp_e_me <- predictions(
+  imp_e, 
+  newdata   = subset(dsf, treat & event>=0),
+  by        = "event"
+  )
+
+ti <- data.frame(
+  term = paste("ATT(", imp_e_me$event, ")", sep = ""),
+  estimate = imp_e_me$estimate,
+  std.error = imp_e_me$std.error,
+  conf.low = imp_e_me$estimate - 1.96*imp_e_me$std.error,
+  conf.high = imp_e_me$estimate + 1.96*imp_e_me$std.error)
+
+imp_me_e <- list(tidy = ti, glance = gl)
+class(imp_me_e) <- "modelsummary_list"
+
+modelsummary(list("ETWFE Time Average" = etwfe_me_e, 
+  "Imputation Time Average" = imp_me_e),
+  shape = term ~ model + statistic, 
+  statistic = c("({std.error})", "conf.int"),
+  gof_omit ='._*')
+```
+
+:::
 
 ## Estimation in Stata
 
