@@ -1,0 +1,1047 @@
+---
+title: "Difference-in-Differences with Heterogenous Treatment Effects"
+author: Sam Harper
+date: today
+format: 
+  html:
+    theme: materia
+    code-fold: true
+    toc: true
+bibliography: did-exp.bib
+---
+
+
+# Setup 
+
+In this document we aim to provide an overview of the issues and methods for evaluating policy impacts in the context of heterogeneous treatments and staggered treatments.
+
+## Simulated data
+
+
+```{r sim, message=FALSE}
+#| code-fold: true
+
+set.seed(394)
+library(here)
+library(tidyverse)
+
+# unit fixed effects (unobserved heterogeneity)
+unit <- tibble(
+  unit = 1:1000,
+  # generate clusters
+  state = sample(1:30, 1000, replace = TRUE),
+  unit_fe = rnorm(1000, state/10, 1),
+  # generate instantaneous treatment effect
+  #mu = rnorm(nobs, true_mu, 0.2)
+  mu = 2
+)
+
+# year fixed effects (first part)
+year <- tibble(
+  year = 2011:2020,
+  year_fe = rnorm(length(year), 0, 0.5)
+)
+
+# Put the clusters into treatment groups
+treat_taus <- tibble(
+  # sample the clusters randomly
+  state = sample(1:30, 30, replace = FALSE),
+  # place the randomly sampled states into 1\{t \ge g \}G_g
+  cohort_year = sort(rep(c(2014, 2016, 2018), 10))
+)
+
+# make main dataset
+# full interaction of unit X year 
+d <- expand_grid(unit = 1:1000, year = 2011:2020) %>% 
+  left_join(., unit) %>% 
+  left_join(., year) %>% 
+  left_join(., treat_taus) %>% 
+  # make error term and get treatment indicators and treatment effects
+  # Also get cohort specific trends (modify time FE)
+  mutate(error = rnorm(1000*10, 0, 2),
+         treat = ifelse((year >= 
+           cohort_year)*(cohort_year != 2018), 1, 0),
+         # treatment effect = 1 if 2016, 2 if 2014, annually
+         mu = ifelse(cohort_year==2016, 1, 2),
+         tau = ifelse(treat == 1, mu, 0),
+         year_fe = year_fe + 0.5*(year - cohort_year)
+  ) %>% 
+  # calculate cumulative treatment effects
+  group_by(unit) %>% 
+  mutate(tau_cum = cumsum(tau)) %>% 
+  ungroup() %>% 
+  # calculate the dependent variable
+  mutate(y = (2020 - cohort_year) + 
+           unit_fe + year_fe + tau_cum + error) %>%
+  # Relabel 2018 cohort as never-treated
+  mutate(cohort_year = ifelse(cohort_year == 2018, Inf, cohort_year))
+```
+
+
+
+For this example we will use a simulated example.^[This section borrows heavily from Brantly Callaway's excellent [vignette](https://bcallaway11.github.io/did/articles/TWFE.html) on the dangers of using Two-Way Fixed Effects (TWFE) in the context of staggered treatments.] For the time being, we are ignoring covariates. 
+
+We are simulating a staggered treatment setup where 30 'clusters', which could be countries, villages, states, etc., but in this case we will use states ($state = \{1,2,\dots,30\}$), which are randomly assigned into 3 treatment groups depending on the treatment starting year (2014, 2016, never treated). We denote the treatment starting period as $g$ that encompasses the 3 groups (i.e., $g \in \{ 2014, 2016, \text{-Inf}\}$), where $\text{-Inf}$ indicates the never treated group (following @{Callaway:2021aa} here such that $g = \infty$ for a never-treated group). We have 1000 units spread out over the 30 clusters, which could be individuals, schools, hospitals, or some other smaller units $i$, which are randomly assigned to one of the 30 states. Let $G_i$ indicates the group/cohort unit $i$ belongs to, i.e., $G \subseteq \{ 2014, 2016, \infty\}$.
+
+The data generating process (DGP) for the outcome $Y$ is: 
+$$Y_{it} = (2020-g) + \alpha_i + \beta_t + \tau_{it} + \epsilon_{it}$$
+where $\alpha_i$ are unit (i.e., cluster) fixed effects drawn from $\sim N(\mu_{state}, 1)$ with state-specific mean $\mu_{state} = state/10$, $\beta_t$ are time fixed effects (cohort-specific parallel time-trends) generated as $$\beta_t = 0.5 * (t - g) + \epsilon^{time FE}_t, $$ with $\epsilon^{time FE}_t \sim N(0, 1)$, $\epsilon_{i,t} \sim N(0,2)$ is an idiosyncratic error term. The $\tau_{i,t}$ are the (instantaneous) unit-specific treatment effects at time $t$ generated as 
+$$ \tau_{it} = \mu_g \times (t - g + 1)\times 1\{t \ge g \}1\{g\not=\infty \},$$
+where $t$ and $g$ are defined as above and $1\{\}$ is a logical operator. We set $\mu_{2014} = 2$, and $\mu_{2016} = 1$. 
+
+So, for example, in 2014 when $G_{2014}$ is first treated, $(t - g + 1)=1$ and the treatment effect is 2. This setup implies heterogeneity: for the group that started treatment in 2014, its average treatment effects evolves with time since first treatment as $2,4,6,\dots$. For the group that started treatment in 2016 the average treatment effect evolves with elapsed time as $1,2,3,\dots$. The treatment effect is zero for the "never-treated" cohort ($g=\infty$). In this case the early-treated group ($g=2014$) benefits more than the later treated group.
+
+Given that each group has same size (on average), the true average treatment effect dynamic across treated groups is $(2+1)/2 = 1.5$ at the time a unit is treated, $2 \times (2+1)/2 = 3$ in the first period after treatment started, etc.
+
+A random sample of 10 rows of the data are shown below:
+
+```{r simtab, results = 'asis', cache=TRUE, message=FALSE}
+
+library(kableExtra)
+ds <- sample_n(d,10)
+kable(ds, caption = "10 rows of simulated data", digits = 3) %>%
+  kable_styling()
+```
+
+
+
+## Plot of simulated data
+Below we show the evolution of $y$ over time for the 3 treatment groups (2014, 2016, untreated). The vertical lines indicate the time of treatment, i.e. $g=t$ for each treated group, and the bold lines show the average evolution of the outcome for each treatment group.
+
+
+```{r plotsim, cache=TRUE, message=FALSE}
+#| code-fold: true
+
+theme_set(theme_classic() + 
+            theme(plot.background = element_blank()))
+
+plot <- d %>% 
+  ggplot(aes(x = year, y = y, group = unit)) + 
+  geom_line(alpha = 1/8, color = "grey") + 
+  geom_line(data = d %>% 
+    group_by(cohort_year, year) %>% 
+    summarize(y = mean(y)),
+   aes(x = year, y = y, group = factor(cohort_year),
+    color = factor(cohort_year)), linewidth = 2) + 
+  labs(x = "", y = "Y",  color = "Treatment group   ") +
+  scale_x_continuous(breaks = c(2012, 2014, 2016, 2018, 2020)) +
+  geom_vline(xintercept = 2014, color = '#E41A1C', linewidth = 2) + 
+  geom_vline(xintercept = 2016, color = '#377EB8', linewidth = 2) + 
+  scale_color_brewer(palette = 'Set1') + 
+  theme(legend.position = 'bottom',
+        #legend.title = element_blank(), 
+        axis.title = element_text(size = 14),
+        axis.text = element_text(size = 12)) +
+  scale_color_manual(labels = c("2014", "2016", "Never-treated"),
+                     values = c("#E41A1C", "#377EB8", "#4DAF4A")) +
+  ggtitle("Simulated data with heterogeneous treatment effect dynamics across cohorts \n and with a never-treated group")+
+  theme(plot.title = element_text(hjust = 0.5, size=12))
+
+plot 
+```
+
+
+
+# Estimating treatment effects
+Next we show various ways of estimating the treatment effects, starting with the standard two-way fixed effects (TWFE) that has been standard in many diff-in-diffs analyses. 
+
+# Two-way fixed effects
+
+## TWFE (average)
+
+The basic model is estimated as:
+
+$$Y_{it} = \alpha_i + \beta_t + \gamma D_{it} + \varepsilon_{it}$$ 
+where $D_{i,t}$ is a time-varying treatment dummy variable that takes value one if a unit $i$ is treated at time $t$, and $\alpha_{i}$ and $\beta_{t}$ are fixed effects for unit and time, respectively. We implement this below using the `fixest` package and cluster the standard errors at the state level. 
+
+
+## TWFE (dynamic)
+Many analyses using TWFE also typically implement an 'event study' type analysis as a robustness check, both to see how the treatment effect may evolve over time in the post period and to see whether there may be some evidence of non-parallel trends in the pre-treatment period. We can implement the event-study type model as:
+$$Y_{it} = \alpha_i + \beta_t + \sum_{k\neq-1} \gamma_{k} D_{it} + \varepsilon_{it}$$ 
+where $k$ indicates time indicators relative to first treatment (i.e., $k=-2$ means 2 periods prior to treatment) and $\gamma_{k}$ are the coefficients on the relative time indicators. To avoid collinearity we exclude one period, which is typically the period just before first treatment ($k=-1$). 
+
+Below is a table showing the estimated effects from the TWFE and event-study models. The overall average estimate from the traditional TWFE model is 3.5, which we know isn't correct, since the average effect should be something closer to $\frac{1}{7}\sum_{t=1}^{7} t*(2+1)/2 = 6$ 
+
+
+```{r es, cache=FALSE}
+# load needed packages
+library(fixest)
+library(fastDummies)
+library(modelsummary)
+library(marginaleffects)
+library(did)
+
+# Estimate TWFE
+twfe = fixest::feols(
+  y ~ treat | state + year,
+  data = d,
+  vcov = ~state
+)
+
+# first make dummy columns for relative time
+data <- d %>% 
+  # make dummies
+  mutate(rel_year = year - cohort_year) %>% 
+  dummy_cols(select_columns = "rel_year") 
+
+# estimate the model
+twfe_event = fixest::feols(
+  y ~ `rel_year_-5` + `rel_year_-4` + `rel_year_-3` + 
+      `rel_year_-2` + `rel_year_0` + `rel_year_1` + 
+    `rel_year_2` + `rel_year_3` + `rel_year_4` + 
+    `rel_year_5` + `rel_year_6` | state + year,
+  data = data,
+  vcov = ~state
+)
+
+rename_rt <- function(old_names) {
+  new_names <- gsub("rel_year_", "Relative time: ", old_names)
+  setNames(new_names, old_names)
+}
+
+modelsummary(list("TWFE" = twfe, 
+  "TWFE:Event study" = twfe_event),
+  coef_rename = rename_rt,
+  shape = term ~ model + statistic, 
+  statistic = c("({std.error})", "conf.int"), fmt=2,
+  gof_omit ='DF|Deviance|R2|AIC|BIC|Log.Lik|ICC|RMSE')
+```
+
+
+How well do the event study coefficients map on to our true estimates from the DGP? Below we show a plot of the true effects based on the simulated data, as well as the estimates from the event study. The answer is: okay? The TWFE estimates are sensible in the post period, but they also suggest some evidence for non-parallel trends in the pre-period, which, in the before times, might lead one to think the parallel trends assumption is violated, which we know is not the case here since we forced the model to be parallel in the pre period [some text on intuition for this would be helpful here].^[This [post](https://andrewcbaker.netlify.app/2020/06/27/how-to-create-relative-time-indicators/#) by Andrew Baker suggests to me that fully saturating this model with all of the relative time indicators may work, but binning the ends if you have a longer series creates problems.] The paper by @{Sun:2021aa} is focused on understanding the bias in TWFE in the context of heterogenous trends.
+
+
+```{r esp, cache=TRUE, message = FALSE, warning=FALSE}
+# plot of estimates
+pt <- get_estimates(twfe_event) %>%
+  select(term, estimate, conf.low, conf.high) %>%
+  mutate(t = c(-5:-2, 0:6)) %>%
+  bind_rows(tibble(t = -1, estimate = 0, 
+    conf.low = 0, conf.high = 0, term = "rel_year_-1")) %>%
+  mutate(true_tau = 
+    ifelse(t >= 0 & t < 5, ((t + 1) * 1.5), 
+           ifelse(t > 4, (t + 1) * 2, 0)))
+
+colors <- c("True Effect" = "red", "Estimated Effect" = "blue")
+
+plot_es <- pt %>%
+  ggplot(aes(x = t, y = estimate)) + 
+    geom_point(color = "blue", size = 3) +
+    geom_line(aes(color = 'Estimated Effect'), linewidth = 1) +
+    geom_linerange(aes(ymin = conf.low, ymax = conf.high), 
+    color = "blue", linewidth = 2, alpha = 0.3) +
+    geom_line(aes(x = t, y = true_tau, color = 'True Effect'), 
+              linetype = "dashed", linewidth = 2) + 
+    geom_hline(yintercept = 0, linetype = "dashed") + 
+    scale_x_continuous(breaks = -5:6) + 
+    labs(x = "Relative Time", y = "Estimate") +
+    ggtitle("TWFE event-study regression estimates") +
+    scale_color_manual(values = colors) + theme_classic() +
+    theme(legend.position = 'bottom',
+      legend.title = element_blank(), 
+      axis.title = element_text(size = 14),
+      axis.text = element_text(size = 12),
+      plot.title = element_text(hjust = 0.5, size=12),
+      plot.background = element_blank())
+plot_es
+```
+
+
+## Callaway-Sant'Anna
+
+To avoid the problems with the TWFE specification above, we can instead use the approach recently developed by @{Callaway:2021aa} that estimates the average treatment effect on the treated ($ATT$) for each treated group $g$ at each time $t$, i.e., $ATT(g,t)$, where groups are defined according to when they were first treated. The group-time specific estimates of each $ATT(g,t)$ are estimated via regression on *subsets* of the data for each group and time periods covering pre- and post-intervention, using the following specification:
+
+$$Y_{it} = \beta_{0}^{gt} + \beta_{1}^{gt}G + \beta_{2}^{gt}T + \beta_{3}^{gt}(G\times T) + \varepsilon^{gt} $$
+
+where $G$ and $T$ refer to indicators for group and time period and $\beta_{3}^{gt}$ is the $ATT(g,t)$ for each group at a given time. Treated groups are compared to not yet treated groups to estimate group-time specific $ATTs$ , which can be combined to estimate the overall effect of the intervention, as well as dynamic treatment effects. 
+
+The table below compares the estimates from the TWFE model to 'simple' aggregate estimate from the CS model. As before, we know that the 'truth' here should be something like an average $ATT$ of 6. The TWFE estimate is wrong and biased downwards to around 3.5, where as the CS estimate is 5.9, about what it should be.
+
+
+```{r cs, message=FALSE, warning=FALSE}
+# Callaway-Sant'Anna
+cs <- did::att_gt(yname = "y", 
+                  tname = "year",
+                  idname = "unit",
+                  gname = "cohort_year",
+                  control_group= "notyettreated",
+                  bstrap = TRUE,
+                  clustervars = "state",
+                  data = d,
+                  print_details = FALSE)
+
+cs_simple <- did::aggte(cs, type = "simple")
+cs_event <- did::aggte(cs, type = "dynamic")
+
+# wrangle aggregate ATTs for model summary table
+ti <- data.frame(
+  term = "treat",
+  estimate = cs_simple$overall.att,
+  std.error = cs_simple$overall.se,
+  conf.low = cs_simple$overall.att - 1.96*cs_simple$overall.se,
+  conf.high = cs_simple$overall.att + 1.96*cs_simple$overall.se)
+
+gl <- data.frame()
+
+cs_avg <- list(tidy = ti, glance = gl)
+class(cs_avg) <- "modelsummary_list"
+
+modelsummary(list("TWFE" = twfe, "Callway-Sant'Anna" = cs_avg),
+  shape = term ~ model + statistic, 
+  statistic = c("({std.error})", "conf.int"),
+  gof_omit ='_*')
+```
+
+
+Estimating each group-time ATT in the CS way also allows several different ways of aggregating ATTs, depending on the question at hand. Above we showed the 'simple' average ATT, but it is also possible to look at dynamic trends or estimates for each separate treated cohort:
+
+::: panel-tabset
+
+### Dynamic
+
+```{r csd, message=FALSE, warning = FALSE}
+
+cs_event <- did::aggte(cs, type = "dynamic")
+
+modelsummary(list("CS: Dynamic" = cs_event),
+  shape = term ~ model + statistic, 
+  statistic = c("({std.error})", "conf.int"),
+  gof_omit ='_*')
+```
+
+
+### Group
+
+```{r csg, message=FALSE, warning = FALSE}
+cs_group <- did::aggte(cs, type = "group")
+cs_group2 <- get_estimates(cs_group)
+tig <- data.frame(
+  term = cs_group2$term,
+  estimate = cs_group2$estimate,
+  std.error = cs_group2$std.error,
+  conf.low = cs_group2$conf.low,
+  conf.high = cs_group2$conf.high)
+
+glg <- data.frame()
+
+cs_group3 <- list(tidy = tig, glance = glg)
+class(cs_group3) <- "modelsummary_list"
+
+modelsummary(list("CS: Group" = cs_group3),
+  shape = term ~ model + statistic, 
+  statistic = c("({std.error})", "conf.int"),
+  gof_omit ='_*')
+
+```
+
+
+### Calendar
+
+```{r csc, message=FALSE, warning = FALSE}
+cs_cal <- did::aggte(cs, type = "calendar")
+
+modelsummary(list("CS: Calendar" = cs_cal),
+  shape = term ~ model + statistic, 
+  statistic = c("({std.error})", "conf.int"),
+  gof_omit ='_*')
+
+```
+
+:::
+
+From the "Group" estimates you can see that the average treatment effect for cohort first treated in 2014 is 8, whereas the effect for the cohort first treated in 2016 is around 2.6. The average reported here is different than the simple average above because it is the average effect of the two groups, rather than the simple average. The 'calendar' estimates are average for each time $t$ in the post-treatment period, which is different than the 'dynamic' effects, which are averages by time since first treated. 
+
+Let's also just look and see at how our 'dynamic' estimates using CS compare to the truth:
+
+
+```{r escs, cache=TRUE, message = FALSE, warning=FALSE}
+# plot of estimates
+ptcs <- get_estimates(cs_event) %>%
+  select(term, estimate, conf.low, conf.high) %>%
+  mutate(t = c(-4:-1, 0:6)) %>%
+  mutate(true_tau = 
+    ifelse(t >= 0 & t < 5, ((t + 1) * 1.5), 
+           ifelse(t > 4, (t + 1) * 2, 0)))
+
+colors <- c("True Effect" = "red", "Estimated Effect" = "blue")
+
+plot_escs <- ptcs %>%
+  ggplot(aes(x = t, y = estimate)) + 
+    geom_point(color = "blue", size = 3) +
+    geom_line(aes(color = 'Estimated Effect'), linewidth = 1) +
+    geom_linerange(aes(ymin = conf.low, ymax = conf.high), 
+    color = "blue", linewidth = 2, alpha = 0.3) +
+    geom_line(aes(x = t, y = true_tau, color = 'True Effect'), 
+              linetype = "dashed", linewidth = 2) + 
+    geom_hline(yintercept = 0, linetype = "dashed") + 
+    scale_x_continuous(breaks = -4:6) + 
+    labs(x = "Relative Time", y = "Estimate") +
+    ggtitle("CS event-study regression estimates") +
+    scale_color_manual(values = colors) + theme_classic() +
+    theme(legend.position = 'bottom',
+      legend.title = element_blank(), 
+      axis.title = element_text(size = 14),
+      axis.text = element_text(size = 12),
+      plot.title = element_text(hjust = 0.5, size=12),
+      plot.background = element_blank())
+plot_escs
+```
+
+
+These estimates look good, with no evidence of non-parallel trends in the pre-intervention period.
+
+## 'Extended' TWFE
+
+In a recent paper @{Wooldridge:2021aa} demonstrated that the issue we saw with the TWFE model above is not a problem with the TWFE model *per se*, only the way that it is specified. In particular, he notes that one can recover nearly identical $ATT(g,t)$ estimates from the linear TWFE model by including a set of interactive fixed effects between treated cohorts and time since treatment. This idea has been referred to as 'extended' TWFE, and basically amounts to interacting a time-varying treatment indicator with both the cohort-year indicators and each time period. He uses somewhat different terminology that we will try to adopt here, such that the time-varying treatment indicator is $w_{it}$, cohort dummies indicating treatment at specific times $r$ since the time $q$ the first group is treated, i.e., $d_{r}$ and time period dummies $fs_{t}$ for every possible period $s$ after the first cohort is treated. Putting this together the ETWFE model ends up looking something like this:
+
+$$Y_{it} = \alpha + \sum_{r=q}^{T} \beta_{r} d_{r} + \sum_{s=r}^{T} \gamma_{s} fs_{t}+ \sum_{r=q}^{T} \sum_{s=r}^{T} \tau_{rt} (d_{r} \times fs_{t}) + \varepsilon_{it}$$ 
+
+Effectively, we are saturating the regression with interactions between treated cohorts and time, such that the $\tau_{rt}$ are estimates of each group-time ATT. Absent constraints this leads to obvious issues of collinearity. Wooldridge notes in his paper that it is possible to drop the coefficients on the pre-treatment years (hence the 'pooling' in his use of the pooled OLS or POLS term), and this is what, in fact the package `fixest` does as well, so it does not, by default, provide any test of pre-trends like the CS method does above. You may notice that there is no time-varying treatment in the equation above, but @{Wooldridge:2021aa} notes in his paper that it is sufficient to use the interactions $d_{ir} \times fs_{t}$ because $w_{it} \times d_{ir} \times fs_{t} = d_{ir} \times fs_{t}$. However, as we will see later the latter form is helpful for estimating marginal effects, which is likely to be helpful in the context of non-linear models. 
+
+Interestingly, Wooldridge also notes that when multiple clusters are treated at the same time (e.g, we have 10 states treated in 2014), one can include fixed effects for the treatment cohorts rather than each individual cluster (though the SEs should still be clustered at the state level).
+
+
+```{r etwfe, warning = FALSE, message = FALSE}
+library(etwfe)
+
+etwfe = fixest::feols(
+  y ~ treat:i(cohort_year, i.year, ref=Inf, ref2 = 2011) | state + year,
+  data = d,
+  vcov = ~state
+)
+
+etwfe_c = fixest::feols(
+  y ~ treat:i(cohort_year, i.year, ref=Inf, ref2 = 2011) | 
+    cohort_year + year,
+  data = d,
+  vcov = ~state
+)
+
+# wrangle aggregate ATTs for model summary table
+ti2 <- data.frame(
+  term = paste("ATT(", cs$group, ",", cs$t, ")", sep = ""),
+  estimate = cs$att,
+  std.error = cs$se)
+
+gl2 <- data.frame()
+
+cs_atts <- list(tidy = ti2, glance = gl2)
+class(cs_atts) <- "modelsummary_list"
+
+# Compare with CS method
+modelsummary(
+  list("Wooldridge: cluster FEs" = etwfe, 
+       "Wooldridge: cohort FEs" = etwfe_c,
+       "Callaway Sant'Anna" = cs_atts),
+  coef_rename = 
+    c("treat:cohort_year::2014:year::2014" = "ATT(2014,2014)",
+      "treat:cohort_year::2014:year::2015" = "ATT(2014,2015)",
+      "treat:cohort_year::2014:year::2016" = "ATT(2014,2016)",
+      "treat:cohort_year::2014:year::2017" = "ATT(2014,2017)",
+      "treat:cohort_year::2014:year::2018" = "ATT(2014,2018)",
+      "treat:cohort_year::2014:year::2019" = "ATT(2014,2019)",
+      "treat:cohort_year::2014:year::2020" = "ATT(2014,2020)",
+      "treat:cohort_year::2016:year::2016" = "ATT(2016,2016)",
+      "treat:cohort_year::2016:year::2017" = "ATT(2016,2017)",
+      "treat:cohort_year::2016:year::2018" = "ATT(2016,2018)",
+      "treat:cohort_year::2016:year::2019" = "ATT(2016,2019)",
+      "treat:cohort_year::2016:year::2020" = "ATT(2016,2020)"),
+  shape = term ~ model,
+  gof_omit ='DF|Deviance|R2|AIC|BIC|Log.Lik|ICC|RMSE')
+
+```
+
+
+The estimates are similar, though not identical, to those from the CS approach. Note also that the SEs are generally smaller in the ETWFE models, since ETWFE pools across never-treated and not-yet treated cohorts in the pre-period, whereas CS only uses the period just before treatment. Wooldridge makes a case for this as a reason to prefer ETWFE over CS, since it uses more of the available information based on the identifying assumptions (section 6.8). Note also that the ETWFE implementation does not provide ATTs for the pre-intervention periods. Wooldridge talks more about this issue in the paper, but does provide some rationale and methods for testing pre-trends. 
+
+## Marginal effects from ETWFE
+
+In contrast to the `did` package (or `csdid` in Stata) from CS that automatically provides different aggregated ATTs, with ETWFE we need to do this by hand.^[It's worth noting that there is an R [package](https://grantmcdermott.com/etwfe/index.html) called `etwfe` by Grant McDermott that is wonderful and was helpful in coding this up. However, I think it is often easier to do it manually to help understand what the package is doing.] The `marginaleffects` package makes this pretty straightforward. The basic idea here is to use the extended TWFE model to generate marginal predictions (and contrasts of marginal predictions) over different combinations of covariates (e.g., simple averaging, groups, time-since-treatment). 
+
+::: panel-tabset
+
+### Simple
+
+```{r etwfe_me_avg, warning = FALSE, message = FALSE}
+# Marginal effect for ETWFE (simple)
+me_avg <- slopes(
+  etwfe, 
+  newdata   = subset(d, treat==1),
+  variables = "treat", 
+  by        = "treat"
+  )
+
+# wrangle aggregate ATTs for model summary table
+ti <- data.frame(
+  term = paste("ATT(", me_avg$term, ")", sep = ""),
+  estimate = me_avg$estimate,
+  std.error = me_avg$std.error,
+  conf.low = me_avg$estimate - 1.96*me_avg$std.error,
+  conf.high = me_avg$estimate + 1.96*me_avg$std.error)
+
+gl <- data.frame()
+
+etwfe_me_avg <- list(tidy = ti, glance = gl)
+class(etwfe_me_avg) <- "modelsummary_list"
+
+modelsummary(list("Simple Average" = etwfe_me_avg),
+  shape = term ~ model + statistic, 
+  statistic = c("({std.error})", "conf.int"),
+  gof_omit ='._*')
+
+```
+
+
+### Cohort
+
+
+```{r etwfe_me_c, warning = FALSE, message = FALSE}
+# Group effects for ETWFE (by cohort)
+me_c <- slopes(
+  etwfe, 
+  newdata   = subset(d, treat & cohort_year),
+  variables = "treat", 
+  by        = "cohort_year"
+  )
+
+# wrangle aggregate ATTs for model summary table
+ti_c <- data.frame(
+  term = paste("ATT(g", me_c$cohort_year, ")", sep=""), 
+  estimate = me_c$estimate, 
+  std.error = me_c$std.error,
+  conf.low = me_c$estimate - 1.96*me_c$std.error,
+  conf.high = me_c$estimate + 1.96*me_c$std.error)
+
+etwfe_me_c <- list(tidy = ti_c, glance = gl)
+class(etwfe_me_c) <- "modelsummary_list"
+
+modelsummary(list("By cohort" = etwfe_me_c),
+  shape = term ~ model + statistic, 
+  statistic = c("({std.error})", "conf.int"),
+  gof_omit ='._*')
+
+```
+
+
+### Calendar Time
+
+
+```{r etwfe_me_t, warning = FALSE, message = FALSE}
+# Group effects for ETWFE (by cohort)
+me_t <- slopes(
+  etwfe, 
+  newdata   = subset(d, treat & year>=2014),
+  variables = "treat", 
+  by        = "year"
+  )
+
+# wrangle aggregate ATTs for model summary table
+ti_t <- data.frame(
+  term = paste("ATT(", me_t$year, ")", sep=""), 
+  estimate = me_t$estimate, 
+  std.error = me_t$std.error,
+  conf.low = me_t$estimate - 1.96*me_t$std.error,
+  conf.high = me_t$estimate + 1.96*me_t$std.error)
+
+etwfe_me_t <- list(tidy = ti_t, glance = gl)
+class(etwfe_me_t) <- "modelsummary_list"
+
+modelsummary(list("By year" = etwfe_me_t),
+  shape = term ~ model + statistic, 
+  statistic = c("({std.error})", "conf.int"),
+  gof_omit ='._*')
+
+```
+
+
+### Dynamic
+
+
+```{r etwfe_me_e, warning = FALSE, message = FALSE}
+# Need to add event indicators to the dataset 
+d <- d %>%
+  mutate(event = year - cohort_year)
+
+# Group effects for ETWFE (by time since treatment)
+me_e <- slopes(
+  etwfe, 
+  newdata   = subset(d, treat & event>=0),
+  variables = "treat", 
+  by        = "event"
+  )
+
+# wrangle aggregate ATTs for model summary table
+ti_e <- data.frame(
+  term = paste("ATT(", me_e$event, ")", sep=""), 
+  estimate = me_e$estimate, 
+  std.error = me_e$std.error,
+  conf.low = me_e$estimate - 1.96*me_e$std.error,
+  conf.high = me_e$estimate + 1.96*me_e$std.error)
+
+etwfe_me_e <- list(tidy = ti_e, glance = gl)
+class(etwfe_me_e) <- "modelsummary_list"
+
+modelsummary(list("Event study" = etwfe_me_e),
+  shape = term ~ model + statistic, 
+  statistic = c("({std.error})", "conf.int"),
+  gof_omit ='._*')
+
+```
+
+
+:::
+
+In general, it's good to see that these different estimates of various aggregate ATTs are similar to what one gets from the CS model.
+
+## Bayesian implementation
+
+All of the previous analyses use a frequentist lens for inference, but given the basic ETWFE setup by Wooldridge, it's also straightforward to put this kind of analysis into a Bayesian framework.^[To avoid recompiling and running the `brms` code to implement the model the code below only works with the fitted model. The `brms` model [code](https://github.com/sbh4th/did-exp/blob/main/code/brms-fits.R) is posted in the repo for this post.] 
+
+### Estimation
+
+Below are the results from 3 different sets of ETWFE models. The first is a straightforward model with uninformative priors, i.e., $N(0,100)$ for all parameters, and without accounting for state-level variation or fixed effects. The second uses similar priors, but is implemented as a multilevel model with random effects at the state level. Last is a model with more sensible priors. Since this is a completely fictitious example, using informative priors doesn't make a lot of sense, but just for kicks, let's tighten up the range of plausible values for the prior. If we use something like $N(0,5)$ we now place 95% of the prior distribution between -10 and +10. 
+
+
+```{r betwfe, warning = FALSE, message = FALSE, cache=T}
+# load the brms fitted models
+bm1 <- readRDS(here("code/fits", "brms-fe.rds"))
+bm2 <- readRDS(here("code/fits", "brms-re-flat.rds"))
+bm3 <- readRDS(here("code/fits", "brms-re-inf.rds"))
+
+# rename coefficients from the models for table
+cm <- 
+  c("b_cohort_year_2014:year_2014:treat" = "ATT(2014,2014)",
+    "b_cohort_year_2014:year_2015:treat" = "ATT(2014,2015)",
+    "b_cohort_year_2014:year_2016:treat" = "ATT(2014,2016)",
+    "b_cohort_year_2014:year_2017:treat" = "ATT(2014,2017)",
+    "b_cohort_year_2014:year_2018:treat" = "ATT(2014,2018)",
+    "b_cohort_year_2014:year_2019:treat" = "ATT(2014,2019)",
+    "b_cohort_year_2014:year_2020:treat" = "ATT(2014,2020)",
+    "b_year_2016:cohort_year_2016:treat" = "ATT(2016,2016)",
+    "b_year_2017:cohort_year_2016:treat" = "ATT(2016,2017)",
+    "b_year_2018:cohort_year_2016:treat" = "ATT(2016,2018)",
+    "b_year_2019:cohort_year_2016:treat" = "ATT(2016,2019)",
+    "b_year_2020:cohort_year_2016:treat" = "ATT(2016,2020)")
+
+# build the table
+modelsummary(list("Fixed only" = bm1, 
+ "State RE (non-informative)" = bm2, 
+ "State RE (informative)" = bm3), 
+  coef_map = cm, statistic="mad",
+  shape = term ~ model,
+  gof_omit ='._*')
+
+```
+
+
+As can be seen from the table above, the Bayesian implementation produces estimates quite similar to the frequentist ETWFE and CS models. The model with informative priors reduces the standard errors by a small amount, but given the size of the dataset, informative priors are unlikely to have a large impact on either the point estimates or measures of uncertainty, unless they contain a lot of information. 
+
+### Bayesian marginal effects
+
+Getting the marginal effects for different kinds of aggregate ATTs proceeds similarly as above. We use the `marginaleffects` package with the `slopes` function to calculate simple, cohort, calendar, and dynamic effects as we did above. To make this process easier, we refit the model in the format above and included the `treat` variable in creating the saturated product terms. Just to note here also that it made a big difference how these product terms were specified in the `brms` specification. Using a more traditional `x*y*z` method that generates all of the two-way product terms (i.e., `x*y`, `y*z`, etc.) led to significant slowdowns in the model estimation time and coefficients on the 3-way terms between `treat`, `cohort_year` and `year` that were different from the ETWFE models above. However, using the `brms` specification of `x:y:z` just generates the 3-way terms without all of the 2-way terms and gives nearly identical results, as well as being much easier to use for estimating marginal effects. 
+
+The tables below provide marginal estimates for each of the different kinds of aggregated ATTs, and the frequentist estimates are also included for comparison. 
+
+::: panel-tabset
+
+### Simple
+
+```{r b_me_avg, warning = FALSE, message = FALSE, cache=T}
+# need to create the dataset
+library(modeldb)
+
+db <- d %>%
+  add_dummy_variables(cohort_year, 
+    values=c(-Inf,2014,2016), remove_original = F) %>%
+  add_dummy_variables(year, 
+    values=c(2011:2020), remove_original = F)
+
+# Marginal effect for Bayesian ETWFE (simple)
+bme_avg <- slopes(
+  bm3, 
+  newdata   = subset(db, treat==1),
+  variables = "treat", 
+  by        = "treat"
+  )
+
+# wrangle aggregate ATTs for model summary table
+bti <- data.frame(
+  term = paste("ATT(", bme_avg$term, ")", sep = ""),
+  estimate = bme_avg$estimate,
+  conf.low = bme_avg$conf.low,
+  conf.high = bme_avg$conf.high,
+  std.error = abs(bme_avg$conf.high - 
+                    bme_avg$conf.low) / (2 * 1.96)
+)
+
+gl <- data.frame()
+
+betwfe_me_avg <- list(tidy = bti, glance = gl)
+class(betwfe_me_avg) <- "modelsummary_list"
+
+modelsummary(list("ETWFE Simple Average" = etwfe_me_avg, 
+  "Bayesian Simple Average" = betwfe_me_avg),
+  shape = term ~ model + statistic, 
+  statistic = c("({std.error})", "conf.int"),
+  gof_omit ='._*')
+
+```
+
+
+### Cohort
+
+
+```{r betwfe_me_c, warning = FALSE, message = FALSE, cache=T}
+# Group effects for Bayesian ETWFE (by cohort)
+bme_c <- slopes(
+  bm3, 
+  newdata   = subset(db, treat & cohort_year),
+  variables = "treat", 
+  by        = "cohort_year"
+  )
+
+bti_c <- data.frame(
+  term = paste("ATT(g", bme_c$cohort_year, ")", sep=""), 
+  estimate = bme_c$estimate,
+  conf.low = bme_c$conf.low,
+  conf.high = bme_c$conf.high,
+  std.error = abs(bme_c$conf.high - 
+                    bme_c$conf.low) / (2 * 1.96)
+)
+
+betwfe_me_c <- list(tidy = bti_c, glance = gl)
+class(betwfe_me_c) <- "modelsummary_list"
+
+modelsummary(list("ETWFE Cohort Average" = etwfe_me_c, 
+                  "Bayesian Cohort Average" = betwfe_me_c),
+  shape = term ~ model + statistic, 
+  statistic = c("({std.error})", "conf.int"),
+  gof_omit ='._*')
+
+```
+
+
+### Calendar Time
+
+
+```{r betwfe_me_t, warning = FALSE, message = FALSE, cache=T}
+# Group effects for Bayesian ETWFE (by cohort)
+bme_t <- slopes(
+  bm3, 
+  newdata   = subset(db, treat & year>=2014),
+  variables = "treat", 
+  by        = "year"
+  )
+
+# wrangle aggregate ATTs for model summary table
+bti_t <- data.frame(
+  term = paste("ATT(", bme_t$year, ")", sep=""), 
+  estimate = bme_t$estimate,
+  conf.low = bme_t$conf.low,
+  conf.high = bme_t$conf.high,
+  std.error = abs(bme_t$conf.high - 
+                    bme_t$conf.low) / (2 * 1.96)
+)
+
+betwfe_me_t <- list(tidy = bti_t, glance = gl)
+class(betwfe_me_t) <- "modelsummary_list"
+
+modelsummary(list("ETWFE Time Average" = etwfe_me_t, 
+                  "Bayesian Time Average" = betwfe_me_t),
+  shape = term ~ model + statistic, 
+  statistic = c("({std.error})", "conf.int"),
+  gof_omit ='._*')
+
+```
+
+
+### Dynamic
+
+
+```{r betwfe_me_e, warning = FALSE, message = FALSE, cache=T}
+# Need to add event indicators to the dataset 
+db <- db %>%
+  mutate(event = year - cohort_year)
+
+# Group effects for ETWFE (by time since treatment)
+bme_e <- slopes(
+  bm3, 
+  newdata   = subset(db, treat & event>=0),
+  variables = "treat", 
+  by        = "event"
+  )
+
+# wrangle aggregate ATTs for model summary table
+bti_e <- data.frame(
+  term = paste("ATT(", bme_e$event, ")", sep=""), 
+  estimate = bme_e$estimate,
+  conf.low = bme_e$conf.low,
+  conf.high = bme_e$conf.high,
+  std.error = abs(bme_e$conf.high - 
+                    bme_e$conf.low) / (2 * 1.96)
+)
+
+betwfe_me_e <- list(tidy = bti_e, glance = gl)
+class(betwfe_me_e) <- "modelsummary_list"
+
+modelsummary(list("ETWFE Event Study" = etwfe_me_e, 
+                  "Bayesian Event Study" = betwfe_me_e),
+  shape = term ~ model + statistic, 
+  statistic = c("({std.error})", "conf.int"),
+  gof_omit ='._*')
+
+```
+
+
+:::
+
+In general, the marginal estimates from the Bayesian models are effectively the same as from the frequentist models. The standard errors are not uniformly larger or smaller for the Bayesian models. 
+
+## Imputation approach
+A couple of recent papers [@Borusyak:2021aa;@Gardner:2022aa] have developed an 'imputation' based approach to DiD with heterogeneous treatment effects. The basic intuition here is to conceptualize the treatment effects as effectively a missing data problem, i.e., what we are trying to do is to impute the counterfactual outcomes for what would have happened to the treated units had they not been treated. 
+
+In the simplest case of DiD without covariates, it turns out that you can do this by running a 'first stage' regression of just unit (or cohort?) and time fixed effects but only for the observations where the treatment has not happened, i.e., $D_{it}=0$. Then, for each observation you effectively subtract out the predicted outcome based only on the fixed effects from the observed outcome values. Then you can construct different averages of those treatment effects. 
+
+For our synthetic dataset, we first run the first stage regression (again, restricted to cohorts and time periods that are prior to treatment), and subtract the observed outcomes from those predicted based on the first stage model. 
+
+
+```{r fs}
+# first stage regression
+fs <- fixest::feols(y ~ 0 | state + year, 
+  data = subset(d, treat==0), vcov = ~state)
+
+# add predicted values to dataset
+library(modelr)
+dsf <- d %>% 
+  select(y,state,year,treat,cohort_year) %>% 
+  add_predictions(fs) %>% 
+  mutate(y_it = y - pred,
+         event = year - cohort_year)
+
+```
+
+
+We can just look at a simple average of the mean of $Y_{it} - \hat{Y}_{it}(0)$ by treatment status, which gives us the overall ATT. 
+
+
+```{r imp-mean}
+
+# simple means
+dsf %>% group_by(treat) %>%
+  summarise(twfe = mean(y_it))
+```
+
+
+Now we can run the regression of our difference measure on different sets of covariates to recover the group-time ATTs, and use similar methods as above to get the marginal ATTs of interest. Below is the comparison to the ETWFE estimates for different kinds of aggregate ATTs.
+
+::: panel-tabset
+
+### Simple
+
+```{r imp_s, message = F}
+imp_s <- fixest::feols(
+  y_it ~ treat -1, data=dsf, vcov= "hetero")
+
+imp_s_me <- slopes(
+  imp_s, 
+  newdata   = subset(dsf, treat==1),
+  variables = "treat", 
+  by        = "treat"
+  )
+
+ti <- data.frame(
+  term = paste("ATT(", imp_s_me$term, ")", sep = ""),
+  estimate = imp_s_me$estimate,
+  std.error = imp_s_me$std.error,
+  conf.low = imp_s_me$estimate - 1.96*imp_s_me$std.error,
+  conf.high = imp_s_me$estimate + 1.96*imp_s_me$std.error)
+
+imp_me_avg <- list(tidy = ti, glance = gl)
+class(imp_me_avg) <- "modelsummary_list"
+
+modelsummary(list("ETWFE Simple Average" = etwfe_me_avg, 
+  "Imputation Simple Average" = imp_me_avg),
+  shape = term ~ model + statistic, 
+  statistic = c("({std.error})", "conf.int"),
+  gof_omit ='._*')
+
+```
+
+
+### Cohort
+
+```{r imp_c, message = F}
+imp_c <- fixest::feols(
+  y_it ~ treat*i(cohort_year, ref(Inf)) -1, 
+    data=dsf, vcov= "hetero")
+
+imp_c_me <- slopes(
+  imp_c, 
+  newdata   = subset(dsf, treat & cohort_year),
+  variables = "treat", 
+  by        = "cohort_year"
+  )
+
+ti <- data.frame(
+  term = paste("ATT(g", imp_c_me$cohort_year, ")", sep = ""),
+  estimate = imp_c_me$estimate,
+  std.error = imp_c_me$std.error,
+  conf.low = imp_c_me$estimate - 1.96*imp_c_me$std.error,
+  conf.high = imp_c_me$estimate + 1.96*imp_c_me$std.error)
+
+imp_me_c <- list(tidy = ti, glance = gl)
+class(imp_me_c) <- "modelsummary_list"
+
+modelsummary(list("ETWFE Cohort Average" = etwfe_me_c, 
+  "Imputation Cohort Average" = imp_me_c),
+  shape = term ~ model + statistic, 
+  statistic = c("({std.error})", "conf.int"),
+  gof_omit ='._*')
+
+```
+
+
+### Calendar Time
+
+```{r imp_t, message = F}
+imp_t <- fixest::feols(
+  y_it ~ treat*i(year, ref(2011)) -1, 
+    data=dsf, vcov= "hetero")
+
+imp_t_me <- slopes(
+  imp_t, 
+  newdata   = subset(dsf, treat & year>=2014),
+  variables = "treat", 
+  by        = "year"
+  )
+
+ti <- data.frame(
+  term = paste("ATT(", imp_t_me$year, ")", sep = ""),
+  estimate = imp_t_me$estimate,
+  std.error = imp_t_me$std.error,
+  conf.low = imp_t_me$estimate - 1.96*imp_t_me$std.error,
+  conf.high = imp_t_me$estimate + 1.96*imp_t_me$std.error)
+
+imp_me_t <- list(tidy = ti, glance = gl)
+class(imp_me_t) <- "modelsummary_list"
+
+modelsummary(list("ETWFE Time Average" = etwfe_me_t, 
+  "Imputation Time Average" = imp_me_t),
+  shape = term ~ model + statistic, 
+  statistic = c("({std.error})", "conf.int"),
+  gof_omit ='._*')
+
+```
+
+
+### Dynamic
+
+```{r imp_e, message = F}
+imp_e <- fixest::feols(
+  y_it ~ i(event, ref = c(-Inf, -1)) -1, 
+    data=dsf, vcov= "hetero")
+
+imp_e_me <- predictions(
+  imp_e, 
+  newdata   = subset(dsf, treat & event>=0),
+  by        = "event"
+  )
+
+ti <- data.frame(
+  term = paste("ATT(", imp_e_me$event, ")", sep = ""),
+  estimate = imp_e_me$estimate,
+  std.error = imp_e_me$std.error,
+  conf.low = imp_e_me$estimate - 1.96*imp_e_me$std.error,
+  conf.high = imp_e_me$estimate + 1.96*imp_e_me$std.error)
+
+imp_me_e <- list(tidy = ti, glance = gl)
+class(imp_me_e) <- "modelsummary_list"
+
+modelsummary(list("ETWFE Time Average" = etwfe_me_e, 
+  "Imputation Time Average" = imp_me_e),
+  shape = term ~ model + statistic, 
+  statistic = c("({std.error})", "conf.int"),
+  gof_omit ='._*')
+```
+
+
+:::
+
+## Estimation in Stata
+
+It is mostly straightforward to also code this up in a similar way using Stata, but generally it seems easiest to create many of the indicators and product terms by hand rather than using Stata's interaction operators. 
+
+Let's start with the basic TWFE model, just to verify that it is wrong in the same way as our TWFE estimate was at the beginning, which was 3.5 with an SE of 0.67:
+
+
+```{r st}
+# Similar setup for Stata
+library(RStata)
+options("RStata.StataVersion" = 16)
+options("RStata.StataPath"= '/Applications/Stata/StataMP.app/Contents/MacOS/stata-mp')
+
+s_twfe <- '
+qui xtreg y i.treat i.year, i(state) fe vce(cluster state) cformat(%4.3f)
+estimates store xttwfe
+estimates table xttwfe, b se keep(1.treat)
+'
+stata(s_twfe, data.in=d)
+```
+
+
+Okay so, basically the same. Now let's run the extended TWFE model. In order to make estimating the marginal effects for aggregate ATTs a bit easier, we use the Wooldridge specification that interacts the time-varying treatment indicator with both the cohort and time dummies. This is done 'by hand' using product terms between the treatment indicator (`treat`), cohort indicators (`gXXXX`) and year indicators (`yXXXX`), for example `c.treat#c.g2014#c.y2014` and so on for each of the required product terms.  
+
+To estimate the marginal effects is pretty straightforward, largely accomplished by using the `dydx(treat)` on the treated subpopulation (i.e, `subpop(treat=1)`) and then aggregating over various dimensions (event, cohorts, years, etc.)
+
+
+```{r st_etwfe}
+# Create new dataset for Stata analysis
+dstata <- d %>%
+  mutate(y2014 = if_else(year==2014, 1, 0),
+         y2015 = if_else(year==2015, 1, 0),
+         y2016 = if_else(year==2016, 1, 0),
+         y2017 = if_else(year==2017, 1, 0),
+         y2018 = if_else(year==2018, 1, 0),
+         y2019 = if_else(year==2019, 1, 0),
+         y2020 = if_else(year==2020, 1, 0),
+         g2014 = if_else(cohort_year == 2014, 1, 0),
+         g2016 = if_else(cohort_year == 2016, 1, 0),
+         event = year - cohort_year)
+  
+
+s_etwfe <- '
+qui xtreg y c.treat#c.g2014#c.y2014 c.treat#c.g2014#c.y2015 ///
+        c.treat#c.g2014#c.y2016 c.treat#c.g2014#c.y2017 ///
+        c.treat#c.g2014#c.y2018 c.treat#c.g2014#c.y2019 ///
+        c.treat#c.g2014#c.y2020 c.treat#c.g2016#c.y2016 ///
+        c.treat#c.g2016#c.y2017 c.treat#c.g2016#c.y2018 ///
+        c.treat#c.g2016#c.y2019 c.treat#c.g2016#c.y2020 ///
+        y2014 y2015 y2016 y2017 y2018 y2019 y2020, ///
+        i(state) fe vce(cluster state) cformat(%4.3f)
+estimates store etwfe
+esttab etwfe, b se keep(c.treat#*) nostar nonotes varwidth(25)
+
+* aggregate ATTs
+* simple
+margins, dydx(treat) subpop(if treat==1)
+
+* group effects
+margins, subpop(if treat==1) dydx(treat) over(cohort_year)
+
+* calendar effects
+margins, subpop(if treat==1) dydx(treat) over(year)
+
+* dynamic effects
+margins, dydx(treat) subpop(if treat==1)  over(event)
+'
+stata(s_etwfe, data.in=dstata)
+```
+
+
+From these models it seems like the basic estimates for the aggregate ATTs are pretty similar for ETWFE and CS implementations. 
+
+# Adding covariates
+
+Need to add: covariates.
+
+# References
