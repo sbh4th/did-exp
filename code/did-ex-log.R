@@ -115,3 +115,16 @@ csk_l_simple <- did::aggte(csk_l, type = "simple")
 did::ggdid(csk_l, type = "simple")
 csk_l_event <- did::aggte(csk_l, type = "dynamic")
 did::ggdid(csk_l_event)
+
+
+
+
+# plot of estimates
+ptcs <- get_estimates(cs_event) %>%
+  select(term, estimate, conf.low, conf.high) %>%
+  mutate(t = c(-4:-1, 0:6)) %>%
+  mutate(true_tau = 
+    ifelse(t >= 0 & t < 5, ((t + 1) * 1.5), 
+           ifelse(t > 4, (t + 1) * 2, 0)))
+
+

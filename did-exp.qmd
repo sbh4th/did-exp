@@ -22,6 +22,7 @@ In this document we aim to provide an overview of the issues and methods for eva
 set.seed(394)
 library(here)
 library(tidyverse)
+library(kableExtra)
 
 # unit fixed effects (unobserved heterogeneity)
 unit <- tibble(
@@ -92,8 +93,6 @@ Given that each group has same size (on average), the true average treatment eff
 
 A random sample of 10 rows of the data are shown below:
 ```{r simtab, results = 'asis', cache=TRUE, message=FALSE}
-
-library(kableExtra)
 ds <- sample_n(d,10)
 kable(ds, caption = "10 rows of simulated data", digits = 3) %>%
   kable_styling()
@@ -561,6 +560,106 @@ modelsummary(list("Event study" = etwfe_me_e),
 :::
 
 In general, it's good to see that these different estimates of various aggregate ATTs are similar to what one gets from the CS model.
+
+The dynamic estimates above only apply to the post-intervention period, in contrast to the non-parametric approach by CS above, which also gives estimates of ATTs prior to any intervention (i.e., assessing whether the pre-trends may be suggest a violation of the parallel trends assumption. In the ETWFE approach of @{Wooldridge:2021aa} he makes a case that, in fact, parallel trends requires the assumption that any 'pre-trends' are zero, so that a fully saturated  'event-study' type model that allows for heterogeneity in the pre-trends means that we cannot, strictly speaking, interpret the group-time estimates in the post period as ATTs, which is why he typically does not include them (and why the `etwfe` package also does not produce estimates of pre-treatment effects because they are set to zero for estimation). 
+
+However, we may still want to conduct some pre-intervention testing, and @{Wooldridge:2021aa} suggests restricting to the untreated observations (i.e., subsetting to `treat=0`) and conducting the same kind of fully interactive model with the treatment cohorts and time. Below we show how this can be implemented, as well as a way to plot them together with the dynamic ATT effects we saw above. We will create an 'ever treated' variable to interact with the cohort and time interactions to make getting the marginal effects easier. We can also use the `marginaleffects` package to calculate a joint test that all of the product terms between cohorts and time are equal to zero in the pre-period.
+
+```{r pre}
+d <- d %>% 
+  mutate(evtreat = if_else(cohort_year!=Inf,1,0))
+
+# estimate the model
+pretests <- fixest::feols(
+  y ~ evtreat:i(cohort_year, i.year, ref=Inf, ref2 = 2011) | cohort_year + year,
+  data = subset(d, treat==0),
+  vcov = ~state
+)
+
+# joint test of pre-trends
+kable(hypotheses(pretests, 
+  "b1 + b2 + b3 + b4 + b5 + b6 = 0"), 
+  caption = "Joint test that all pre-trends = 0", 
+  digits = 3) %>%
+  kable_styling()
+
+```
+
+As expected, since we simulated parallel trends, the p-value for this test is quite large (0.90) and there is little evidence to reject the assumption. Now we can also get these estimates to put into a dynamic plot.
+
+```{r etd, message = FALSE, warning = FALSE}
+# get the marginal effects
+me_e_p <- 
+  slopes(pretests, 
+    variables = "evtreat", 
+    newdata = subset(d, treat==0 & event > -5), 
+    by = "event")
+
+# wrangle aggregate ATTs for model summary table
+ti_pre <- data.frame(
+  term = paste("Pre-treatment(", me_e_p$event, ")", sep=""), 
+  estimate = me_e_p$estimate, 
+  std.error = me_e_p$std.error,
+  conf.low = me_e_p$estimate - 1.96*me_e_p$std.error,
+  conf.high = me_e_p$estimate + 1.96*me_e_p$std.error)
+
+etwfe_me_e_p <- list(tidy = ti_pre, glance = gl)
+class(etwfe_me_e_p) <- "modelsummary_list"
+
+modelsummary(list("Pre-trends" = etwfe_me_e_p),
+  shape = term ~ model + statistic, 
+  statistic = c("({std.error})", "conf.int"),
+  gof_omit ='._*')
+```
+
+Now we can combine these estimates with our earlier dynamic trends for a single plot:
+
+```{r preplot}
+
+ete <- bind_rows(me_e_p, me_e)
+
+ete %>% 
+  mutate(`Intervention time` = if_else(event<0, "Pre", "Post")) %>% 
+  ggplot(aes(x = event, y = estimate, ymin = conf.low, 
+    ymax = conf.high, color = `Intervention time`)) +
+    geom_hline(yintercept = 0) +
+    geom_pointrange() + theme_classic() +
+    labs(x = "Time relative to treatment",
+         y = "Effect on outcome")
+```
+
+As well as comparing these estimates to the 'true' values of the ATTs from our simulated data. 
+
+```{r plot_pre_truth}
+ptet <- get_estimates(ete) %>%
+  select(term, estimate, conf.low, conf.high) %>%
+  mutate(t = c(-4:-1, 0:6)) %>%
+  mutate(true_tau = 
+    ifelse(t >= 0 & t < 5, ((t + 1) * 1.5), 
+           ifelse(t > 4, (t + 1) * 2, 0)))
+
+plot_e_pre <- ptet %>%
+  ggplot(aes(x = t, y = estimate)) + 
+    geom_point(color = "blue", size = 3) +
+    geom_line(aes(color = 'Estimated Effect'), linewidth = 1) +
+    geom_linerange(aes(ymin = conf.low, ymax = conf.high), 
+    color = "blue", linewidth = 2, alpha = 0.3) +
+    geom_line(aes(x = t, y = true_tau, color = 'True Effect'), 
+              linetype = "dashed", linewidth = 2) + 
+    geom_hline(yintercept = 0, linetype = "dashed") + 
+    scale_x_continuous(breaks = -4:6) + 
+    labs(x = "Relative Time", y = "Estimate") +
+    ggtitle("ETWFE event-study regression estimates") +
+    scale_color_manual(values = colors) + theme_classic() +
+    theme(legend.position = 'bottom',
+      legend.title = element_blank(), 
+      axis.title = element_text(size = 14),
+      axis.text = element_text(size = 12),
+      plot.title = element_text(hjust = 0.5, size=12),
+      plot.background = element_blank())
+plot_e_pre
+```
+
 
 ## Bayesian implementation
 
