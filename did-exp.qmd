@@ -74,6 +74,9 @@ d <- expand_grid(unit = 1:1000, year = 2011:2020) %>%
            unit_fe + year_fe + tau_cum + error) %>%
   # Relabel 2018 cohort as never-treated
   mutate(cohort_year = ifelse(cohort_year == 2018, Inf, cohort_year))
+
+# write to data folder
+write_rds(d, here("data", "did-sim-data.rds"))
 ```
 
 
