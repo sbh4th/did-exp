@@ -57,7 +57,7 @@ dtest <- expand_grid(unit = 1:1000, year = 2001:2020) %>%
   mutate(error = rnorm(1000*20, 0, 2),
          treat = ifelse((year >= 
            cohort_year), 1, 0),
-         # treatment effect = 3 if 2015, 6 if 2010, annually
+         # treatment effect = 4 if 2015, 1 if 2010, annually
          mu = ifelse(cohort_year==2015, 4, 1),
          tau = ifelse(treat == 1, mu, 0),
          # year trends differ by cohort
@@ -113,9 +113,9 @@ ds %>%
 
 What is the causal effect of the intervention in the 2010 cohort? 
 
-Let's do the ITS for the early treated cohort with a simple model like:^[Note this model is set up slightly differently than an ITS where the product term uses the 'time-since intervention'. It's easier to estimate marginal effects when both variables in the product term are in the model, but the downside is that the coefficient on `treat` now does not directly give us the step change at the time of the intervention. That can be easily done via marginal predictions.]
+Let's do the ITS for the early treated cohort with a simple model like:^[Note this model is set up for an ITS where the product term uses the 'time-since intervention', i.e. `since` term. This is calculated as year0 - year0 at time of intervention].
 
-$$Y_{it} = \beta_{0} + \beta_{1}*year0 + \beta_{2}*treat + \beta_{3}*year0*treat + \epsilon_{it}$$
+$$Y_{it} = \beta_{0} + \beta_{1}*year0 + \beta_{2}*treat + \beta_{3}*since + \epsilon_{it}$$
 
 First, let's estimate the models separately for each cohort. We'll use the `lm_robust` function from `estimatr` to easily get cluster robust standard errors. 
 
@@ -165,7 +165,8 @@ p_2015 <- p_2015 %>%
     "Difference"))
 
 modelsummary(list("2010 cohort" = p_2010,
-  "2015 cohort" = p_2015), fmt=2)
+  "2015 cohort" = p_2015), fmt=2,
+  statistic = "conf.int", shape = term ~ statistic)
 ```
 
 So, we get predictions of `r round(p_2010$estimate[2], 1)` under treatment and `r round(p_2010$estimate[1], 1)` in the counterfactual absence of treatment for the 2010 cohort. The difference is `r round(p_2010$estimate[3], 1)`. For the 2015 later-treated cohort, at the end of follow-up we get predictions of `r round(p_2015$estimate[2], 1)` under treatment and `r round(p_2015$estimate[1], 1)` in the counterfactual absence of treatment. The difference is `r round(p_2015$estimate[3], 1)`. If we wanted to ignore any heterogeneity and just calculate an average causal effect at the end of follow-up, we can just take a weighted average of the cohort-specific effects.
@@ -176,83 +177,69 @@ te <- p_2010$estimate[3]*(1/3) + p_2015$estimate[3]*(2/3)
 
 The average causal effect in the population is `r round(te, 2)`. 
 
-In each of these cases it is clear that we are comparing each treated unit to itself to generate these counterfactual estimates. We can also use `marginaleffects` to get the average annual slopes (though redundant since these are linear models)
-
-```{r, warning = FALSE}
-# treatment slope for 2010 cohort
-as_2010 <- avg_slopes(m_c2010, variables = "year0", by="treat", hypothesis = "b2 - b1 = 0") %>%
-  mutate(term = "Avg. slope")
-
-# now for 2015 cohort
-as_2015 <- avg_slopes(m_c2015, variables = "year0", by="treat", hypothesis = "b2 - b1 = 0") %>%
-  mutate(term = "Avg. slope")
-
-modelsummary(list("2010 cohort" = as_2010,
-  "2015 cohort" = as_2015), fmt=2,
-  statistic = "conf.int",
-  gof_omit = 'DF|Deviance|R2|AIC|BIC|RMSE')
-```
-
-Same values as shown for the `year0 x treat` variable in the table of model estimates above. Although we fit these models separately, we could hand calculate an overall averaged effect (ignoring cohort heterogeneity). The 2015 cohort is twice as large as the 2010 cohort, so a weighted average of the average treatment slopes above is (1/3) * `r round(as_2010$estimate, 2)` + (2/3) * `r round(as_2015$estimate, 2)`, which is about `r round((1/3) * as_2010$estimate + (2/3) * as_2015$estimate, 2)`. 
+In each of these cases it is clear that we are comparing each treated unit to itself to generate these counterfactual estimates. We could also use `marginaleffects` to get the average annual slopes (though redundant since these are coefficients in the models). Although we fit these models separately, we could hand calculate an overall averaged effect (ignoring cohort heterogeneity). The 2015 cohort is twice as large as the 2010 cohort, so a weighted average of the average treatment slopes above is (1/3) * `r round(m_c2010$coefficients[4], 2)` + (2/3) * `r round(m_c2015$coefficients[4], 2)`, which is about `r round((1/3) * m_c2010$coefficients[4] + (2/3) * m_c2015$coefficients[4], 2)`. 
 
 ## Pooled analysis with calendar time
 
-Now let's analyze the entire cohort pooled together. Including a fixed effect for cohort in these models will only allow for an overall level shift, and if we include a product term between cohort and time, and cohort and the product term, we can recover the causal effects in both cohorts, or averaged over the entire period. Here are the model estimates:
+Now let's analyze the entire cohort pooled together. Including a fixed effect for cohort in these models will only allow for an overall level shift, and if we include a product term between cohort and time, and cohort and the level change (`treat`) and cohort and the slope change `since`), we can recover the causal effects in both cohorts, or averaged over the entire period. Here are all of the model estimates:
 
 ```{r}
 
-m_all <- lm_robust(formula = y ~ year0 * treat, 
+m_all <- lm_robust(formula = 
+  y ~ year0 + treat + since, 
   data = ds, clusters = state)
 
-m_all_s <- lm_robust(formula = y ~ cohort_2015 + year0 * treat, 
+m_all_s <- lm_robust(formula = 
+  y ~ cohort_2015 + year0 + treat + since, 
   data = ds, clusters = state)
 
-m_all_int <- lm_robust(formula = y ~ cohort_2015 * year0 * treat, 
+m_all_int <- lm_robust(formula = 
+  y ~ cohort_2015 * (year0 + treat + since), 
   data = ds, clusters = state)
 
-modelsummary(list("No cohort" = m_all,
+modelsummary(list("2010 cohort" = m_c2010,
+  "2015 cohort" = m_c2015, "No cohort FE" = m_all,
   "Cohort FE" = m_all_s, "Interactive" = m_all_int),
   fmt = 2, gof_omit = 'DF|Deviance|R2|AIC|BIC|RMSE')
 ```
 
-If we use the interacted model we can recover the cohort-specific treatment effects at the end of follow-up above (again, setting `year0` to 19), as well as getting an overall average (although we probably wouldn't want to ignore this kind of heterogeneity). 
+If we use the interacted model we can recover the cohort-specific treatment effects at the end of follow-up above (again, setting `year0` to 19), as well as getting an overall average (again, choosing to ignore heterogeneity). 
 
 ```{r, warning=FALSE}
 # predictions at end of follow-up by treatment
-m_all_int_ap <- avg_predictions(m_all_int, 
-  variable = c("cohort_2015", "treat"), 
-  newdata = datagrid(year0 = 19))
+# set up dataframe for predictions
+eof <- tibble(
+  cohort_2015 = c(0,0,1,1),
+  year0 = c(rep(19,4)),
+  treat = c(0,1,0,1),
+  since = c(0,10,0,5)
+)
+
+m_all_int_ap <- predictions(m_all_int, 
+  newdata = eof)
 
 # treatment effects
-m_all_int_te <- avg_predictions(m_all_int, 
-  variable = c("cohort_2015", "treat"), 
-  newdata = datagrid(year0 = 19),
-  hypothesis = c("b2 - b1 = 0", "b4 - b3 = 0")) %>%
+m_all_int_te <- hypotheses(m_all_int_ap, 
+  c("b2 - b1 = 0", "b4 - b3 = 0")) %>%
   mutate(term = c("2010 cohort", "2015 cohort"))
 
 modelsummary(list("Marginal effects from interaction model" 
-                  = m_all_int_te), fmt=2,
-  statistic = "conf.int", shape = term ~ statistic)
+  = m_all_int_te), fmt=2,
+  statistic = "conf.int", shape = term ~ statistic,
+  notes = "Note: calculated at end of follow-up.")
 ```
 
-Same estimates that we calculated in the separate models above. Now for the average slopes:
+Same estimates that we calculated in the separate models above. The average slopes for each cohort can be estimated from the coefficients in the interacted model above. Since `cohort_2015`=0 for the 2010 cohort, the term `treat` gives the level shift at the time of the intervention for the 2010 cohort and the `since` term gives the post-intervention slope for the 2010 cohort. The product terms between `cohort_2015` and each of these terms give the *difference* between cohorts in the level shift and post-intervention slopes, respectively. You can get the cohort-specific slopes from this single model using the  `avg_slopes` function from `marginaleffects`:
 
 ```{r, warning = FALSE}
-# average slopes by treatment status
-m_all_int_as <- avg_slopes(m_all_int, variable = "year0", 
-  by=c("cohort_2015", "treat")) %>%
-  mutate(term = c("Pre", "Post", "Pre", "Post"))
 
-# average slope effects
-m_all_int_slope <- avg_slopes(m_all_int, variable = "year0", 
-  by=c("cohort_2015", "treat"),
-  hypothesis = c("b2 - b1 = 0", "b4 - b3 = 0")) %>%
-  mutate(term = c("Difference", "Difference"),
-         cohort_2015 = c(0,1))
-
-m_all_int_slopes <- m_all_int_as %>% 
-  bind_rows(m_all_int_slope) %>%
-  mutate(cohort_2015 = factor(cohort_2015,
+m_all_int_slopes <- avg_slopes(m_all_int, 
+  variable=c("treat","since"), 
+  by="cohort_2015") %>%
+  mutate(
+    term = c("Post-slope (since)","Post-slope (since)",
+             "Level shift (treat)","Level shift (treat)"),
+    cohort_2015 = factor(cohort_2015,
     labels = c("2010 cohort","2015 cohort")))
 
 modelsummary(list("Average slopes: Interaction model" 
@@ -264,18 +251,18 @@ modelsummary(list("Average slopes: Interaction model"
 
 Again, same as above. 
 
-As noted above, since the 2015 cohort is twice as large as the 2010 cohort, if we wanted an overall effect the weighted average effect can be derived by setting the value of `cohort_2015` to 0.67.
+As noted, since the 2015 cohort is twice as large as the 2010 cohort, if we wanted an overall effect the weighted average effect can be derived by setting the value of `cohort_2015` to (2/3). Of course this average effect is a combination of the counterfactual effects at 10 years post-intervention for the 2010 cohort and 5 years post-intervention for the 2015 cohort.
 
 ```{r}
 # predictions at end of follow-up
 # averaging over the entire sample
-m_all_int_aap <- avg_predictions(m_all_int, variable = "treat", 
-  newdata = datagrid(year0 = 19, cohort_2015 = (2/3))) %>%
+m_all_int_aap <- hypotheses(m_all_int_ap, 
+  c("(1/3)*b1 + (2/3)*b3 = 0", 
+  "(1/3)*b2 + (2/3)*b4 = 0")) %>%
   mutate(term = c("Untreated", "Treated"))
 
-# average treatment effect
-m_all_int_ate <- comparisons(m_all_int, variable = "treat", 
-  newdata = datagrid(year0 = 19, cohort_2015 = (2/3))) %>%
+m_all_int_ate <- hypotheses(m_all_int_ap, 
+  "(1/3)*(b2 - b1) + (2/3)*(b4 - b3) = 0") %>%
   mutate(term = "Difference")
 
 m_all_int_ates <- m_all_int_aap %>% 
@@ -290,110 +277,9 @@ modelsummary(list("Population average effect: interaction model"
 
 ```
 
-Same average predictions and treatment effects as we calculated above. We can do the same for the slopes:
+Pretty much the same average predictions and treatment effects as we calculated above. 
 
-```{r, warning = FALSE}
-# cohort-specific treatment effects
-m_all_int_aas <- avg_slopes(m_all_int, variable = "year0", 
-  by=c("cohort_2015", "treat"), 
-  hypothesis = c("b2 - b1 = 0", 
-   "b4 - b3 = 0")) %>%
-  mutate(term = c("2010 cohort", "2015 cohort"))
-
-# weighted average of treatment slopes
-m_all_int_slope <- avg_slopes(m_all_int, 
-  variable = "year0", 
-  by=c("cohort_2015", "treat"), 
-  hypothesis = "(1/3)*(b2 - b1) + (2/3)*(b4 - b3) = 0") %>%
-  mutate(term = "Average slope")
-
-m_all_int_aslope <- m_all_int_aas %>%
-  bind_rows(m_all_int_slope)
-
-modelsummary(list("Population average slope: interaction model" 
-                  = m_all_int_aslope), fmt = 2,
-  statistic = "conf.int", 
-  shape = term ~ statistic,
-  gof_omit = 'DF|Deviance|R2|AIC|BIC|RMSE',
-  notes = "Note: 2015 cohort weighted by 2/3.")
-
-```
-
-Now what about the treatment effects for the other models? If we ignore cohort all together:
-
-```{r, warning = FALSE}
-# predictions at end of follow-up
-m_all_ap <- avg_predictions(m_all, variable = "treat", 
-  newdata = datagrid(year0 = 19)) %>%
-  mutate(term = c("Untreated", "Treated"))
-
-# effect of treatment
-m_all_te <- comparisons(m_all, variable = "treat", 
-  newdata = datagrid(year0 = 19)) %>%
-  mutate(term = "Difference")
-
-# average slopes by treatment
-m_all_as <- avg_slopes(m_all, variables = "year0", 
-  by="treat") %>%
-  mutate(term = c("Pre", "Post"))
-
-# treatment slopes
-m_all_slope <- avg_slopes(m_all, variables = "year0", 
-  by="treat", hypothesis = "b2 - b1 = 0") %>%
-  mutate(term = "Difference")
-
-m_all_table <- m_all_ap %>%
-  bind_rows(m_all_te, m_all_as, m_all_slope) %>%
-  select(term, estimate, std.error, conf.low, conf.high)
-
-colnames(m_all_table) <- c(" ", "Est.", "SE", "2.5%", "97.5%")
-
-tt(m_all_table, digits = 2) %>% 
-  group_tt(j = list("No cohort FE" = 2:5),
-    i = list("Predictions at year 20" = 1, 
-      "Slope estimates" = 4))
-```
-
-Not right. If the true impacts are an average effect of `r round(te, 2)` by the end of follow-up and an average slope of `r round((1/3) * as_2010$estimate + (2/3) * as_2015$estimate, 2)`, these estimates are not correct. What happens if we just condition on cohort without allowing for separate treatment effects? 
-
-```{r, warning=FALSE}
-# predictions at end of follow-up
-m_all_s_ap <- avg_predictions(m_all_s, variable = "treat", 
-  newdata = datagrid(year0 = 19,
-  cohort_2015 = 2/3)) %>%
-  mutate(term = c("Untreated","Treated"))
-
-# effect of treatment at end of follow-up
-m_all_s_te <- comparisons(m_all_s, variable = "treat", 
-  newdata = datagrid(year0 = 19,
-  cohort_2015 = 2/3)) %>%
-  mutate(term = "Difference")
-
-# average slope
-m_all_s_as <- avg_slopes(m_all_s, 
-  variables = "year0", by="treat") %>%
-  mutate(term = c("Pre", "Post"))
-
-# treatment effect
-m_all_s_slope <- avg_slopes(m_all_s, variables = "year0", 
-  by="treat", hypothesis = "b2 - b1 = 0") %>%
-  mutate(term = "Difference")
-
-m_all_s_table <- m_all_s_ap %>%
-  bind_rows(m_all_s_te, m_all_s_as, m_all_s_slope) %>%
-  select(term, estimate, std.error, conf.low, conf.high)
-
-colnames(m_all_s_table) <- c(" ", "Est.", "SE", "2.5%", "97.5%")
-
-tt(m_all_s_table, digits = 2,
-   notes = "Note: Cohort set to 2/3 for predictions") %>% 
-  group_tt(j = list("With cohort FE" = 2:5),
-    i = list("Predictions at year 20" = 1, 
-      "Slope estimates" = 4))
-```
-
-This is a little better but generally still not correct, which is perhaps not that surprising since simply adding a cohort fixed effect only allows for a level shift. 
-
+Now what about the treatment effects for the other models? If we ignore cohort all together the treatment effect at the intervention point is `r round(m_all$coefficients[3],2)`, and the post-intervention slope is `r round(m_all$coefficients[4],2)`, which are considerably off from our population weighted values. Since the model that includes a cohort fixed effect only allows for an intercept difference, the estimates from this model aren't much better. In addition, these models guarantee a positivity violation, since there is zero probability that the 2015 cohort can be treated before 2015 or that the 2010 cohort can be untreated after 2010. 
 
 ## Relative time
 
@@ -419,88 +305,81 @@ ds %>%
   scale_color_brewer(palette = 'Set1', labels = c("2010", "2015", "Average")) + theme_classic()
 ```
 
-Yeah, this looks a little strange, and you can see that of course the average slope in the early period is only coming from the 2015 cohort, and the slope in the later post period is only coming from the 2010 cohort. 
+Yeah, this looks a little strange, and you can see that, of course, the average slope in the early period is only coming from the 2015 cohort, and the slope in the later post period is only coming from the 2010 cohort. 
 
-Let's start with the model that has no cohort fixed effects.
-
-```{r, warning = FALSE}
-m_all_c <- lm_robust(y ~ yearc * treat, data=ds, 
-  clusters = state)
-
-m_all_c_as <- avg_slopes(m_all_c, 
-  variables = "yearc", by="treat") %>%
-  mutate(term = c("Pre", "Post"))
-
-m_all_c_slope <- avg_slopes(m_all_c, 
-  variables = "yearc", by="treat",
-  hypothesis = "b2 - b1 = 0") %>%
-  mutate(term = "Difference")
-
-m_all_c_slopes <- m_all_c_as %>% 
-  bind_rows(m_all_c_slope)
-
-modelsummary(list("Average slopes: No cohort" = m_all_c_slopes),
-  fmt = 2, statistic = "conf.int", 
-  shape = term ~ model + statistic,
-  gof_omit = 'DF|Deviance|R2|AIC|BIC|RMSE')
-
-```
-
-This gives us biased estimates slope effects (recall that the average slope should be `r round((1/3) * as_2010$estimate + (2/3) * as_2015$estimate, 2)`). Moreover, since we are now working with relative time we can't specify the treatment effect at the end of follow-up, we have to specify a relative time. But this means either extrapolating beyond the observed data for the later-treated cohort (if we set the centered year variable (`yearc`) to 10 years post), or shortening the time horizon for the early treated cohort (if we set `yearc` to 5). Here are the estimated predictions and treatment effects at year 10 post intervention:
+Now let's estimate the same models as we did above:
 
 ```{r}
-# predictions at 10 years of follow up
-m_all_c_ap <- avg_predictions(m_all_c, variable = "treat", 
-  newdata = datagrid(yearc = 10)) %>%
-  mutate(term = c("Untreated","Treated"))
+m_c2010_c <- lm_robust(
+  y ~ yearc + treat + since, 
+  data = subset(ds, cohort_2015==0), 
+  clusters = state)
 
-# effect of treatment
-m_all_c_te <- comparisons(m_all_c, variable = "treat", 
-  newdata = datagrid(yearc = 10)) %>%
-  mutate(term = "Difference")
+m_c2015_c <- lm_robust(
+  y ~ yearc + treat + since, 
+  data = subset(ds, cohort_2015==1), 
+  clusters = state)
 
-m_all_c_ate <- m_all_c_ap %>% 
-  bind_rows(m_all_c_te)
+m_all_c <- lm_robust(
+  y ~ yearc + treat + since, 
+  data = ds, clusters = state)
 
-modelsummary(list("No cohort fixed effect" 
-    = m_all_c_ate),
-  fmt = 2, statistic = "conf.int", 
-  shape = term ~ model + statistic,
-  gof_omit = 'DF|Deviance|R2|AIC|BIC|RMSE',
-  notes = "Note: predictions 10-years post intervention")
+m_all_s_c <- lm_robust(
+  y ~ cohort_2015 + yearc + treat + since, 
+  data = ds, clusters = state)
 
+m_all_int_c <- lm_robust(
+  y ~ cohort_2015 * (yearc + treat + since), 
+  data = ds, clusters = state)
+
+modelsummary(list("2010 cohort" = m_c2010_c,
+  "2015 cohort" = m_c2015_c, "No cohort FE" = m_all_c,
+  "Cohort FE" = m_all_s_c, "Interactive" = m_all_int_c),
+  fmt = 2, gof_omit = 'DF|Deviance|R2|AIC|BIC|RMSE')
 ```
 
-Okay, now we get an estimate of `r round(m_all_c_te$estimate, 2)`. Recall that the overall average effect at the end of follow-up was ``r round(te, 2)`. Obviously extrapolation is having some consequence here.
+Not surprisingly, since the cohort-specific models are basing the counterfactual off extrapolating from the *same* unit, the effects at the time of intervention and the post-intervention slopes are correct, but the intercept terms are now off because we have recentered year.^[In fact, you'll note that the estimated intercepts for these models are exactly the predicted outcomes for the non-centered models at the time of the intervention.] 
 
-Let's add a cohort fixed effect and look at the estimated slope effect:
+The pooled models with and without the cohort fixed effects give both the incorrect treatment effect and the incorrect slope. And, of course, the fully interactive model also gives identical estimates to what we found above. 
+
+Since we have recentered year we can't really get an estimate of average predicted treatment effects at the end of follow-up. But we can get estimates for each cohort at the end of their respective follow-ups:
 
 ```{r, warning = FALSE}
-m_all_cs <- lm_robust(y ~ cohort_2015 + yearc * treat, 
-  data=ds, clusters = state)
+# predictions for 2010 cohort
+p_2010_c <- predictions(m_c2010_c, 
+  newdata = datagrid(yearc = c(10,10),
+    treat = c(0,1), since = c(0,10))) 
 
-m_all_cs_as <- avg_slopes(m_all_cs, 
-  variables = "yearc", by="treat") %>%
-  mutate(term = c("Pre", "Post"))
+d_2010_c <- hypotheses(p_2010_c, "b4 - b1 = 0")
 
-m_all_cs_slope <- avg_slopes(m_all_cs, 
-  variables = "yearc", by="treat",
-  hypothesis = "b2 - b1 = 0") %>%
-  mutate(term = "Difference")
+p_2010_c <- p_2010_c %>%
+  filter(rowid==c(1,4)) %>%
+  bind_rows(d_2010_c) %>%
+  mutate(term = c("Untreated", "Treated",
+    "Difference"))
 
-m_all_cs_slopes <- m_all_cs_as %>% 
-  bind_rows(m_all_cs_slope)
+# predictions for 2015 cohort
+p_2015_c <- predictions(m_c2015_c, 
+  newdata = datagrid(yearc = c(5,5),
+    treat = c(0,1), since = c(0,5)))
+d_2015_c <- hypotheses(p_2015_c, "b4 - b1 = 0")
 
-modelsummary(list("Average slopes: Cohort FE" 
-                   = m_all_cs_slopes),
-  fmt = 2, statistic = "conf.int", 
-  shape = term ~ model + statistic,
-  gof_omit = 'DF|Deviance|R2|AIC|BIC|RMSE')
+p_2015_c <- p_2015_c %>% 
+    filter(rowid==c(1,4)) %>%
+  bind_rows(d_2015_c) %>%
+  mutate(term = c("Untreated", "Treated",
+    "Difference"))
+
+modelsummary(list("2010 cohort (at 10yrs)" = p_2010_c,
+  "2015 cohort (at 5 yrs)" = p_2015_c), fmt=2,
+  statistic = "conf.int", shape = term ~ statistic)
 ```
 
-Our estimate is now `r round(m_all_cs_slope$estimate, 2)`, compared to the true estimate of `r round((1/3) * as_2010$estimate + (2/3) * as_2015$estimate, 2)`.
+Exactly the same as we estimated using calendar time above. As we showed above, you can recover these same estimates using the fully interacted model, but the pooled models with and without the cohort fixed effect generate biased estimates of the true treatment effects. 
 
-Now let's limit our comparisons to only the years where we have sufficient overlap of years once we center things (i.e., where `yearc` >= -9 or <= 5). Here is a plot of the restricted data:
+Once again, the pooled models wildly overestimate the level shift and do not give the correct post-intervention slopes. 
+
+Okay, now let's limit our comparisons to only the years where we have sufficient overlap of years once we center things (i.e., where `yearc` >= -9 or <= 5). Here is a plot of the restricted data:
 
 ```{r, echo=F, message = FALSE}
 # relative time with restriction
@@ -526,194 +405,92 @@ ds %>%
   scale_color_brewer(palette = 'Set1', labels = c("2010", "2015", "Average")) + theme_classic()
 ```
 
-Here are the models using relative time, with and without a cohort fixed effect:
-
-```{r, warning = FALSE}
-m_all_cr <- lm_robust(y ~ yearc * treat, 
-  data=subset(ds, yearc >= -9 & yearc <= 5), 
-  clusters = state)
-
-m_all_crs <- lm_robust(y ~ cohort_2015 + yearc * treat, 
-  data=subset(ds, yearc >= -9 & yearc <= 5), 
-  clusters = state)
-
-modelsummary(list("No cohort" = m_all_cr,
-  "Cohort FE" = m_all_crs),
-  fmt = 2, 
-  gof_omit = 'DF|Deviance|R2|AIC|BIC|RMSE')
-```
-
-As the model comparison shows, including just the cohort fixed effect here only allows for a 'level shift', so it has no impact on the slope for `yearc` or the product term between `treat` and `yearc`. So these models will both produce the same average slopes (though not the same average predictions because of the cohort fixed effect).
-
-```{r, include = FALSE}
-m_all_cr_te <- comparisons(m_all_cr, 
-  variables = "treat", 
-  newdata = datagrid(yearc=5))
-m_all_cr_te
-
-m_all_crs_te <- comparisons(m_all_crs, variables = "treat", 
-  newdata = datagrid(yearc=5), cohort_2015 = 2/3)
-```
-
-What about our slope estimates now?
+Here are the models using relative time:
 
 ```{r}
-m_all_cr_as <- avg_slopes(m_all_cr, 
-  variables = "yearc", by="treat") %>%
-  mutate(term = c("Pre", "Post"))
-
-m_all_cr_slope <- avg_slopes(m_all_cr, 
-  variables = "yearc", by="treat",
-  hypothesis = "b2 - b1 = 0") %>%
-  mutate(term = "Difference")
-
-m_all_cr_slopes <- m_all_cr_as %>% 
-  bind_rows(m_all_cr_slope)
-
-m_all_crs_as <- avg_slopes(m_all_crs, 
-  variables = "yearc", by="treat") %>%
-  mutate(term = c("Pre", "Post"))
-
-m_all_crs_slope <- avg_slopes(m_all_crs, 
-  variables = "yearc", by="treat",
-  hypothesis = "b2 - b1 = 0") %>%
-  mutate(term = "Difference")
-
-m_all_crs_slopes <- m_all_crs_as %>% 
-  bind_rows(m_all_crs_slope)
-
-modelsummary(list("No cohort FE" = m_all_cr_slopes,
-  "Cohort FE" = m_all_crs_slopes),
-  fmt = 2, statistic = "conf.int", 
-  shape = term ~ model + statistic,
-  gof_omit = 'DF|Deviance|R2|AIC|BIC|RMSE',
-  title = "Average slopes: restricted relative time model")
-```
-
-The average slope for the model with cohort is `r round(m_all_crs_slope$estimate, 2)` and the estimate for the model without the cohort term is `r round(m_all_cr_slope$estimate, 2)`. The pre and post slope levels for the restricted relative time models differ due to the cohort term, but both are nearly the same for the estimate we calculated as a weighted average for the full sample using calendar time, which was `r round(m_all_int_slope$estimate, 2)`.
-
-How about for a fully-interacted model with relative time? Let's compare it with our model using all of the data above:
-
-```{r}
-m_all_scri <- lm_robust(y ~ cohort_2015 * yearc * treat,
-  data=subset(ds, yearc >= -9 & yearc <= 5), 
+m_c2010_cr <- lm_robust(
+  y ~ yearc + treat + since, 
+  data = subset(ds, cohort_2015==0 &
+    yearc >= -9 & yearc <= 5), 
   clusters = state)
 
-modelsummary(list("Calendar time" = m_all_int,
-  "Relative time (restricted)" = m_all_scri), 
-  coef_rename = c("year0" = "year", 
-                  "yearc" = "year"),
-  fmt = 2,
-  gof_omit = 'DF|Deviance|R2|AIC|BIC|RMSE')
+m_c2015_cr <- lm_robust(
+  y ~ yearc + treat + since, 
+  data = subset(ds, cohort_2015==1 &
+    yearc >= -9 & yearc <= 5), 
+  clusters = state)
 
+m_all_cr <- lm_robust(
+  y ~ yearc + treat + since, 
+  data = subset(ds, yearc >= -9 & yearc <= 5), 
+  clusters = state)
+
+m_all_s_cr <- lm_robust(
+  y ~ cohort_2015 + yearc + treat + since, 
+  data = subset(ds, yearc >= -9 & yearc <= 5), 
+  clusters = state)
+
+m_all_int_cr <- lm_robust(
+  y ~ cohort_2015 * (yearc + treat + since), 
+  data = subset(ds, yearc >= -9 & yearc <= 5), 
+  clusters = state)
+
+modelsummary(list("2010 cohort" = m_c2010_cr,
+  "2015 cohort" = m_c2015_cr, "No cohort FE" = m_all_cr,
+  "Cohort FE" = m_all_s_cr, "Interactive" = m_all_int_cr),
+  fmt = 2, gof_omit = 'DF|Deviance|R2|AIC|BIC|RMSE')
 ```
 
-With the fully interacted model using relative time, you get nearly the same slope parameters for year and year * treatment (well within sampling error) since there is no non-linearity in the slopes for either cohort, but the level parameters (intercept, treatment effect at year0, and cohort fixed effect) all will be different. You can then back out predictions for a fixed time post-intervention (e.g., 10 years), but this will obviously lead to extrapolation for the later treated cohort. Nevertheless this shows that the relative time model after eliminating overlap *can* recover estimates of the true treatment effects. 
+These estimates look good. The estimated level shifts and the post-intervention slopes are just about identical to what we got using calendar time. It's also interesting to see that the level and slope parameters from the pooled models with and without cohort fixed effects also give correct average level and slope parameters, which is in contrast to the calendar time models above. This is because recentering year and limiting the data to overlapping periods removes the extrapolation and positivity violations that were created using calendar time and ignoring heterogeneity by cohort.
 
-```{r, warning = FALSE, include = FALSE}
-# cohort-specific slopes by treatment
-avg_slopes(m_all_scri, variable = "yearc", 
-  by=c("cohort_2015", "treat"))
+As the model comparison shows, including just the cohort fixed effect here only allows for a 'level shift', so it has no impact on the estimated treatment effect at the time of intervention (`treat`) or the post-intervention slope (`since`). So these models will both produce the same average slopes (though not exactly the same average predictions because of the cohort fixed effect).
 
-# cohort-specific treatment effects
-avg_slopes(m_all_scri, variable = "yearc", 
-  by=c("cohort_2015", "treat"), 
-  hypothesis = c("b2 - b1 = 0", 
-   "b4 - b3 = 0"))
-```
+The average post-intervention slope for the model with cohort is `r round(m_all_s_cr$coefficients[4], 2)` (same for the model with cohort), and both of these estimates are nearly the same as the estimate we calculated as a weighted average for the full sample using calendar time, which was `r round((1/3) * m_c2010$coefficients[4] + (2/3) * m_c2015$coefficients[4], 2)`.
+
+With the fully interacted model using restricted relative time, you get the same slope parameters for `treat`, `since` and their interactions with cohort, but the level parameters (e.g., intercept, cohort fixed effect) will be different. You can then back out predictions for a fixed time post-intervention (e.g., 10 years), but this will obviously lead to extrapolation for the later treated cohort. Nevertheless this shows that the relative time model after eliminating overlap *can* recover estimates of the true treatment effects. 
 
 ## Hang on...
 
-The big caveat to the last point above is that this only occurs under specific kinds of scenarios. In particular, the restricted, centered time approach 'works' in recovering the true slopes in our prior example because the simulated trends are linear (though not identical across cohorts) in both of the pre- and post-treatment periods. It's intuitive in the since that, if the trends are linear through the entire time, it shouldn't matter much whether you use 10 pre-periods or 5 pre-periods to estimate the pre-intervention slope (and vice versa for the post-intervention slope in the early treated cohort).
+The big caveat to the last point above is that this only occurs under specific kinds of scenarios. In particular, the restricted, centered time approach 'works' in recovering the true slopes in our prior example because the simulated trends are linear (though not identical across cohorts) in both of the pre- and post-treatment periods. It's intuitive in the sense that, if the trends are linear through the entire time, it shouldn't matter much whether you use 10 pre-periods or 5 pre-periods to estimate the pre-intervention slope (and vice versa for the post-intervention slope in the early treated cohort).
 
-But this is a strong (and unnecessary) assumption. Plus, if there is non-linearity in the slopes then restricting the analysis to periods of overlap won't actually help. Let simulate another example. The treatment effects are identical but now we introduce a small amount of non-linearity to the pre-intervention trends for the 2015 cohort.
+But this is a strong (and unnecessary) assumption, artificially reduces the sample size and restricts the population for making inferences, and does not allow for the same kinds of treatment effect estimation as when using calendar time. 
 
-Here is the code to simulate:
+Plus, if there is non-linearity in the slopes then restricting the analysis to periods of overlap won't actually help to recover the 'true' effects. Let's slightly modify our example. We will keep the treatment effects identical to the last example but now introduce a small amount of non-linearity to the pre-intervention trends for the 2015 cohort.
+
+Here is the code to tweak our previous simulation:
 ```{r, message = FALSE}
-set.seed(4705)
-
-# unit fixed effects (unobserved heterogeneity)
-unit <- tibble(
-  unit = 1:1000,
-  # generate clusters
-  state = sample(1:30, 1000, replace = TRUE),
-  unit_fe = rnorm(1000, state/10, 1),
-  # generate instantaneous treatment effect
-  #mu = rnorm(nobs, true_mu, 0.2)
-  mu = 2
-)
-
-# year fixed effects (first part)
-year <- tibble(
-  year = 2001:2020,
-  year_fe = rnorm(length(year), 0, 0.5)
-)
-
-# Put the clusters into treatment groups
-treat_taus <- tibble(
-  # sample the clusters randomly
-  state = sample(1:30, 30, replace = FALSE),
-  # place the randomly sampled states into 1\{t \ge g \}G_g
-  cohort_year = sort(rep(c(2010, 2015), times=c(10,20)))
-)
-
-# make main dataset
-# full interaction of unit X year 
-dtest2 <- expand_grid(unit = 1:1000, year = 2001:2020) %>% 
-  left_join(., unit) %>% 
-  left_join(., year) %>% 
-  left_join(., treat_taus) %>% 
-  # make error term and get treatment indicators and treatment effects
-  # Also get cohort specific trends (modify time FE)
-  mutate(error = rnorm(1000*20, 0, 2),
-         treat = ifelse((year >= 
-           cohort_year), 1, 0),
-         # treatment effect = 4 if 2015, 1 if 2010, annually
-         mu = ifelse(cohort_year==2015, 4, 1),
-         tau = ifelse(treat == 1, mu, 0),
-         # year trends differ by cohort
-         year_fe = ifelse(cohort_year==2015 & year<2006,
+ds2 <- ds %>% 
+  # add non-linearity to early part of 2015 cohort
+  mutate(
+    year_fe = ifelse(cohort_year==2015 & year<2006,
           year_fe + (2015 - cohort_year) * 
            (year - cohort_year) / 5 + 12,
           year_fe + (2020 - cohort_year) *
-           (year - cohort_year) / 5 + 20)
-  ) %>% 
-  # calculate cumulative treatment effects
-  group_by(unit) %>% 
-  mutate(tau_cum = cumsum(tau)) %>% 
-  ungroup() %>% 
-  # calculate the dependent variable
-  mutate(y = (2020 - cohort_year) + 
+           (year - cohort_year) / 5 + 20), 
+    # re-generate outcome
+    y = (2020 - cohort_year) + 
            unit_fe + year_fe + tau_cum + error) 
-
-# bring in simulated DiD dataset
-dss <- dtest2 %>%
-  # read_rds(here("data", 
- #"did-sim-data.rds")) %>%
-  mutate(year0 = year - 2001,
-    yearc = year - cohort_year,
-    cohort_2015 = ifelse(cohort_year == 2015, 1, 0))
 ```
 
 Here is our new plot:
 ```{r, message = FALSE}
-dss %>% 
+ds2 %>% 
   ggplot(aes(x = year0, y = y, group = unit)) + 
   geom_line(alpha = 1/8, color = "grey") + 
-  geom_line(data = dss %>% 
+  geom_line(data = ds2 %>% 
     group_by(cohort_year, year0) %>% 
     summarize(y = mean(y)),
    aes(x = year0, y = y, group = factor(cohort_year),
     color = factor(cohort_year)), linewidth = 2) + 
-  geom_line(data = dss %>%
+  geom_line(data = ds2 %>%
     group_by(year0) %>%
       summarize(y = mean(y)),
     aes(x = year0, y = y, color = "#4daf4a", group="All"), 
     linewidth = 1, linetype = 2) +
   labs(x = "", y = "Y",  color = "Treatment group   ") +
   scale_x_continuous(breaks = c(5, 10, 15, 20)) +
-  geom_vline(xintercept = 10, color = '#E41A1C', linewidth = 2) + 
-  geom_vline(xintercept = 15, color = '#377EB8', linewidth = 2) + 
+  geom_vline(xintercept = 9, color = '#E41A1C', linewidth = 2) + 
+  geom_vline(xintercept = 14, color = '#377EB8', linewidth = 2) + 
   scale_color_brewer(palette = 'Set1', 
     labels = c("2010", "2015", "Average")) + 
   theme_classic()
@@ -722,17 +499,17 @@ dss %>%
 In this particular scenario, the non-linear part of the trend for the 2015 cohort is in the very early pre-period (everything else is the same), which means it won't be captured when we have to restrict to years of overlap when using relative time. Here is a plot using relative time:
 
 ```{r, message = FALSE}
-dss %>%
+ds2 %>%
   filter(yearc >= -9 & yearc <= 5) %>%
   ggplot(aes(x = yearc, y = y, group = unit)) + 
   geom_line(alpha = 1/8, color = "grey") + 
-  geom_line(data = ds %>% 
+  geom_line(data = ds2 %>% 
     filter(yearc >= -9 & yearc <= 5) %>%
     group_by(cohort_year, yearc) %>% 
     summarize(y = mean(y)),
    aes(x = yearc, y = y, group = factor(cohort_year),
     color = factor(cohort_year)), linewidth = 2) +
-  geom_line(data = ds %>%
+  geom_line(data = ds2 %>%
     filter(yearc >= -9 & yearc <= 5) %>%
     group_by(yearc) %>%
       summarize(y = mean(y)),
@@ -743,136 +520,61 @@ dss %>%
   geom_vline(xintercept = 0, color = '#984ea3', linewidth = 2) + 
   scale_color_brewer(palette = 'Set1', labels = c("2010", "2015", "Average")) + theme_classic()
 ```
-This looks a lot like the plot from our earlier simulation. We won't go through all of the prior models, but let's compare what we get from the interactive analysis using calendar time, as well as the simple model using restricted time, which we saw gave us the correct slope in the example above. Here are the models and parameters:
+This looks a lot like the plot from our original simulation. We won't go through all of the prior models, but let's compare what we get from the interactive analysis using calendar time, as well as the simple model using restricted time, which we saw gave us the correct slope in the example above. Here are the models and parameters:
 
 ```{r}
 # calendar time full model
 m_all_int2 <- lm_robust(
-  y ~ cohort_2015 * year0 * treat,
-  data = dss, clusters = state)
+  y ~ cohort_2015 * (year0 + treat + since),
+  data = ds2, clusters = state)
 
 # relative time full model
-m_all_scri2 <- lm_robust(
-  y ~ cohort_2015 * yearc * treat,
-  data=subset(dss, yearc >= -9 & yearc <= 5), 
+m_all_int_cr2 <- lm_robust(
+  y ~ cohort_2015 * (yearc + treat + since), 
+  data = subset(ds2, yearc >= -9 & yearc <= 5), 
   clusters = state)
 
-# relative time basic model
-m_all_cr2 <- lm_robust(
-  y ~ yearc * treat,
-  data=subset(dss, yearc >= -9 & yearc <= 5), 
-  clusters = state)
-
-# relative time basic model
-m_all_crs2 <- lm_robust(
-  y ~ cohort_2015 + yearc * treat,
-  data=subset(dss, yearc >= -9 & yearc <= 5), 
-  clusters = state)
-
-modelsummary(list("Calendar time" = m_all_int2,
-  "Relative time (restricted)" = m_all_scri2,
-  "Basic model (restricted)" = m_all_cr2), 
+ft <- modelsummary(list("Sim1: Interaction" = m_all_int, 
+  "Sim2: Interaction" = m_all_int2,
+  "Sim1: Interaction" = m_all_int_cr, 
+  "Sim2: Interaction" = m_all_int_cr2),
   fmt = 2, coef_rename = c("year0" = "year", 
                   "yearc" = "year"),
-  gof_omit = 'DF|Deviance|R2|AIC|BIC|RMSE')
-```
-
-We can see that the basic model with restricted time has a different `year x treat` term, and the interactive model has a different value for the 3-way interaction between cohort, year, and treatment. 
-
-What is the true slope here? 
-
-```{r, warning = FALSE}
-# cohort-specific treatment effects
-m_all_int_aas2 <- avg_slopes(m_all_int2, variable = "year0", 
-  by=c("cohort_2015", "treat"), 
-  hypothesis = c("b2 - b1 = 0", 
-   "b4 - b3 = 0")) %>%
-  mutate(term = c("2010 cohort", "2015 cohort"))
-
-# weighted average of treatment slopes
-m_all_int_slope2 <- avg_slopes(m_all_int2, 
-  variable = "year0", 
-  by=c("cohort_2015", "treat"), 
-  hypothesis = "(1/3)*(b2 - b1) + (2/3)*(b4 - b3) = 0") %>%
-  mutate(term = "Average slope")
-
-m_all_int_aslope2 <- m_all_int_aas2 %>%
-  bind_rows(m_all_int_slope2)
-
-modelsummary(list("Population average slope: interaction model" 
-                  = m_all_int_aslope2), fmt = 2,
-  statistic = "conf.int", 
-  shape = term ~ statistic,
   gof_omit = 'DF|Deviance|R2|AIC|BIC|RMSE',
-  notes = "Note: 2015 cohort weighted by 2/3.")
+  output = 'tinytable')
+
+tt(ft@table_dataframe) %>%
+  group_tt(j=list("Calendar time" = 2:3, 
+    "Relative time (restricted)" = 4:5))
 ```
 
-Okay, so introducing this bit of non-linearity in the early years flattens the pre-intervention slope for the 2015 cohort, so the treatment effect is also a little larger (`r round(m_all_int_slope2$estimate, 2)`) relative to the previously simulated data (`r round(m_all_int_slope$estimate, 2)`). 
+Since we only intervened with the pre-trend for the 2015 cohort, the `treat` and `since` values are identical in the interacted model using calendar time, since these are the treatment effects for the 2010 cohort. However, the `treat` effect for the 2015 cohort (i.e., $\beta*treat + \beta*cohort_{2015}*treat$) is now `r round(m_all_int2$coefficients[4] + m_all_int2$coefficients[7], 2)` instead of `r round(m_all_int$coefficients[4] + m_all_int$coefficients[7], 2)` and the post-intervention slope effect (`since`, i.e., $\beta*since + \beta*cohort_{2015}*since$) is now `r round(m_all_int2$coefficients[5] + m_all_int2$coefficients[8], 2)` instead of `r round(m_all_int$coefficients[5] + m_all_int$coefficients[8], 2)`. 
 
-Above we saw that when using relative time and limiting the data to years of overlap even the simple models with or without a fixed effect for cohort could recover the weighted average treatment slope from the calendar time model. What do we get now?
+These differences in the true effects are due to the fact that introducing this bit of non-linearity in the early years flattens the pre-intervention slope for the 2015 cohort, leading to a larger jump at the intervention and greater slope in the post-intervention period. 
+
+Above we saw that when using relative time and limiting the data to years of overlap even the simple models with or without a fixed effect for cohort could recover the weighted average treatment slope from the calendar time model. What do we get now?  
 
 ```{r}
-m_all_cr_as2 <- avg_slopes(m_all_cr2, 
-  variables = "yearc", by="treat") %>%
-  mutate(term = c("Pre", "Post"))
+# relative time basic model
+m_all_cr2 <- lm_robust(
+  y ~ yearc + treat + since,
+  data=subset(ds2, yearc >= -9 & yearc <= 5), 
+  clusters = state)
 
-m_all_cr_slope2 <- avg_slopes(m_all_cr2, 
-  variables = "yearc", by="treat",
-  hypothesis = "b2 - b1 = 0") %>%
-  mutate(term = "Difference")
+# relative time cohort FE model
+m_all_s_cr2 <- lm_robust(
+  y ~ cohort_2015 + yearc + treat + since,
+  data=subset(ds2, yearc >= -9 & yearc <= 5), 
+  clusters = state)
 
-m_all_cr_slopes2 <- m_all_cr_as2 %>% 
-  bind_rows(m_all_cr_slope2)
-
-m_all_crs_as2 <- avg_slopes(m_all_crs2, 
-  variables = "yearc", by="treat") %>%
-  mutate(term = c("Pre", "Post"))
-
-m_all_crs_slope2 <- avg_slopes(m_all_crs2, 
-  variables = "yearc", by="treat",
-  hypothesis = "b2 - b1 = 0") %>%
-  mutate(term = "Difference")
-
-m_all_crs_slopes2 <- m_all_crs_as2 %>% 
-  bind_rows(m_all_crs_slope2)
-
-modelsummary(list("No cohort FE" = m_all_cr_slopes2,
-  "Cohort FE" = m_all_crs_slopes2),
+modelsummary(list("No cohort FE" = m_all_cr2,
+  "Cohort FE" = m_all_s_cr2),
   fmt = 2, statistic = "conf.int", 
   shape = term ~ model + statistic,
-  gof_omit = 'DF|Deviance|R2|AIC|BIC|RMSE',
-  title = "Average slopes: restricted relative time model")
+  gof_omit = 'DF|Deviance|R2|AIC|BIC|RMSE')
+
 ```
 
-As above we get the same answer regardless of whether or not we include cohort fixed effects. However the average slope here is `r round( m_all_crs_slope2$estimate, 2)`, which is biased downward relative to the true effect of `r round(m_all_int_slope2$estimate, 2)`. This is precisely because the pre-intervention slope of the restricted relative time model does not account for the diminished slope of the 2015 cohort in the early pre-period.
+From the interacted calendar time models above the true weighed average `treat` effect is `r round((1/3)*m_all_int2$coefficients[4] + (2/3)*m_all_int2$coefficients[7], 2)` and the weighted average `since` effect is `r round((1/3)*m_all_int2$coefficients[5] + (2/3)*m_all_int2$coefficients[8], 2)`. The estimates using the restricted relative time models with and without cohort fixed effects are identical: `r round(m_all_cr2$coefficients[3], 2)` for `treat` and `r round(m_all_cr2$coefficients[4], 2)` for `since`. These aren't accurate estimates. This is precisely because the pre-intervention slope of the restricted relative time model does not account for the diminished slope of the 2015 cohort in the early pre-period.
 
-What about if we use the fully interacted model with restricted relative time?
-
-```{r, warning = FALSE}
-# cohort-specific treatment effects
-m_all_scri_aas2 <- avg_slopes(m_all_scri2, 
-  variable = "yearc", 
-  by=c("cohort_2015", "treat"), 
-  hypothesis = c("b2 - b1 = 0", 
-   "b4 - b3 = 0")) %>%
-  mutate(term = c("2010 cohort", "2015 cohort"))
-
-# weighted average of treatment slopes
-m_all_scri_slope2 <- avg_slopes(m_all_scri2, 
-  variable = "yearc", 
-  by=c("cohort_2015", "treat"), 
-  hypothesis = "(1/3)*(b2 - b1) + (2/3)*(b4 - b3) = 0") %>%
-  mutate(term = "Average slope")
-
-m_all_scri_aslope2 <- m_all_scri_aas2 %>%
-  bind_rows(m_all_scri_slope2)
-
-modelsummary(list("Calender time" = m_all_int_aslope2,
-                  "Relative (restricted) time" = m_all_scri_aslope2),
-  fmt = 2, statistic = "conf.int", 
-  shape = term ~ model + statistic,
-  gof_omit = 'DF|Deviance|R2|AIC|BIC|RMSE',
-  notes = "Note: 2015 cohort weighted by 2/3")
-```
-
-Here, even the interacted model that allows for separate treatment effects by cohort does not recover the true slope. Again, you can see the main issue is the fact that the average slope for the 2015 cohort is biased downward. Obviously this latter simulation does not introduce a lot of non-linearity in the pre-trends, but even a small amount leads to bias when using relative time. 
+Even the interacted model using restricted relative time that allows for separate treatment effects by cohort does not recover the true treatment effects. Those (weighted average) estimates are `r round((1/3)*m_all_int_cr2$coefficients[4] + (2/3)*m_all_int_cr2$coefficients[7], 2)` for level effect and `r round((1/3)*m_all_int_cr2$coefficients[5] + (2/3)*m_all_int_cr2$coefficients[8], 2)` for the post-intervention slope effect. Again, the main issue is the fact that the average pre-intervention slope for the 2015 cohort is biased downward. Obviously this latter simulation does not introduce a lot of non-linearity in the pre-trends, but even a small amount leads to bias when using relative time and restricting to common years of overlap.
