@@ -136,11 +136,11 @@ etwfe_me <- slopes(etwfe,
 
 
 # Simulate null just to check
-coef_results <- c()
-p_results <- c()
-sig_results <- c()
+coef_results_o <- c()
+p_results_o <- c()
+sig_results_o <- c()
 
-for (i in 1:2000) {
+for (i in 1:50) {
 # data
   unit <- tibble(
     unit = 1:57000,
@@ -205,9 +205,8 @@ etwfe_me <- slopes(etwfe,
   vcov = ~country)
 
 # results
-coef_results[i] <- etwfe_me$estimate
-p_results[i] <- etwfe_me$p.value
-sig_results[i] <- etwfe_me$p.value <= .05
+coef_results_o[i] <- etwfe_me$estimate
+sig_results_o[i] <- etwfe_me$p.value <= .05
   
 }
 
@@ -374,9 +373,7 @@ results <- future_lapply(1:n_sims, function(i) {
         sd = 4
       )),
       cohort_wave = if_else(cohort_wave == 1, Inf, cohort_wave),
-      cohort_wave_2 = as.integer(cohort_wave == 2),
-      cohort_wave_3 = as.integer(cohort_wave == 3),
-      cohort_wave_4 = as.integer(cohort_wave == 4)
+      
     )
   
   # ---- Exact model specification (your original version) ----
@@ -406,27 +403,21 @@ results <- future_lapply(1:n_sims, function(i) {
   N <- 57000
   n_countries <- 38
   n_waves <- 4
-  n_sims <- 100
+  n_sims <- 2000
   
-  # ---- Precompute static unit + wave information ----
+  # ---- Precompute static unit info ----
   units <- tibble(
     unit    = 1:N,
     country = sample(1:n_countries, N, replace = TRUE),
     unit_fe = rnorm(N, mean = (1:n_countries)[country] / 10, sd = 1)
   )
   
-  waves <- tibble(
-    wave    = 1:n_waves,
-    wave_fe = rnorm(n_waves, 0, 0.5)
-  )
-  
-  # Expand once: units × waves
+  # Expand once: units × waves (without wave_fe, which now varies each sim)
   base_d <- tibble(
     unit    = rep(units$unit, each = n_waves),
     country = rep(units$country, each = n_waves),
     unit_fe = rep(units$unit_fe, each = n_waves),
-    wave    = rep(waves$wave, times = N),
-    wave_fe = rep(waves$wave_fe, times = N)
+    wave    = rep(1:n_waves, times = N)
   )
   
   # Add static wave dummies (never change)
@@ -440,15 +431,23 @@ results <- future_lapply(1:n_sims, function(i) {
   # ---- Parallel plan ----
   plan(multisession, workers = parallel::detectCores() - 1)
   
-  # ---- Define simulation function ----
+  # ---- Simulation function ----
   sim_fun <- function(i, p) {
+    # Wave FE: regenerate each sim
+    waves <- tibble(
+      wave    = 1:n_waves,
+      wave_fe = rnorm(n_waves, 0, 0.5)
+    )
+    
     # Treatment timing varies each sim
     treat_taus <- tibble(
       country = sample(1:n_countries, n_countries, replace = FALSE),
       cohort_wave = sort(c(rep(1, 24), rep(2, 2), rep(3, 4), rep(4, 8)))
     )
     
-    dr <- base_d %>%
+    # Build dataset
+    d <- base_d %>%
+      left_join(waves, by = "wave") %>%
       left_join(treat_taus, by = "country") %>%
       mutate(
         error = rnorm(n(), 0, 1),
@@ -473,38 +472,46 @@ results <- future_lapply(1:n_sims, function(i) {
         cohort_wave_4 = as.integer(cohort_wave == 4)
       )
     
-    # Model: your exact specification
-    etwfe <- lm(
-      y ~ treat:cohort_wave_2:wave_2 +
-        treat:cohort_wave_2:wave_3 +
-        treat:cohort_wave_2:wave_4 +
-        treat:cohort_wave_3:wave_3 +
-        treat:cohort_wave_3:wave_4 +
-        treat:cohort_wave_4:wave_4 +
-        wave_2 + wave_3 + wave_4 +
-        cohort_wave_2 + cohort_wave_3 + cohort_wave_4,
-      data = dr
+    # Exact model specification (your version)
+#    etwfe <- lm(
+#      y ~ treat:cohort_wave_2:wave_2 +
+#        treat:cohort_wave_2:wave_3 +
+#        treat:cohort_wave_2:wave_4 +
+#        treat:cohort_wave_3:wave_3 +
+#        treat:cohort_wave_3:wave_4 +
+#        treat:cohort_wave_4:wave_4 +
+#        wave_2 + wave_3 + wave_4 +
+#        cohort_wave_2 + cohort_wave_3 + cohort_wave_4,
+#      data = d
+#    )
+#    
+#    etwfe_me <- slopes(
+#      etwfe,
+#      newdata = subset(d, treat == 1),
+#      var = "treat",
+#      by = "treat",
+#      vcov = ~country
+#    )
+    
+    twfe <- fixest::feols(
+      y ~ treat | country + wave,
+        data = d, vcov = ~country
     )
     
-    etwfe_me <- slopes(
-      etwfe,
-      newdata = subset(dr, treat == 1),
-      var = "treat",
-      by = "treat",
-      vcov = ~country
-    )
+    me <- tidy(twfe)
+    # est <- me$estimate[1]
+    # est_sig <- me$p.value[1] < 0.05
     
     p() # progress update
     
     list(
-      coef = etwfe_me$estimate,
-      pval = etwfe_me$p.value,
-      sig  = etwfe_me$p.value <= 0.05
+      coef = me$estimate[1],
+      sig  = me$p.value[1] <= 0.05
     )
   }
   
   # ---- Run with progress bar ----
-  handlers(global = TRUE)   # enable progress bar handlers
+  handlers(global = TRUE)   # enable console progress bar
   with_progress({
     p <- progressor(steps = n_sims)
     results <- future_lapply(1:n_sims, function(i) sim_fun(i, p),
@@ -513,8 +520,4 @@ results <- future_lapply(1:n_sims, function(i) {
   
   # ---- Collect results ----
   coef_results <- sapply(results, `[[`, "coef")
-  p_results   <- sapply(results, `[[`, "pval")
   sig_results <- sapply(results, `[[`, "sig")
-  
-
-  
