@@ -8,10 +8,17 @@ library(fixest)
 # --- Simulation parameters ---
 n_units     <- 1500    # units per country
 n_countries <- 38
-waves       <- 4
+n_waves     <- 4
 n_sims      <- 50
 
 # --- Base panel construction ---
+
+# Full unit × wave panel
+base <- expand.grid(
+  unit    = 1:n_units, 
+  country = 1:n_countries, 
+  wave    = 1:n_waves)
+  
 # Cohort assignment: 24 never-treated, 2 cohort 2, 4 cohort 3, 8 cohort 4
 treat_taus <- data.frame(
   country = 1:n_countries,
@@ -53,12 +60,14 @@ sim_fun <- function(iter, p) {
   # treatment path
   d <- base %>%
     mutate(
-      treat   = ifelse((wave >= cohort_wave) & (cohort_wave != Inf), 1, 0),
-      tau     = 0,  # placeholder if you want heterog effects later
+      treat = ifelse((wave >= cohort_wave) & 
+        (cohort_wave != Inf), 1, 0),
+      tau = 0,
       tau_cum = ave(tau, unit, FUN = cumsum),
       y = round(rtruncnorm(
         n_obs, a = 0, b = 20,
-        mean = 15 - cohort_wave + unit_fe + wave_fe + tau_cum + error,
+        mean = 15 - cohort_wave + unit_fe + 
+          wave_fe + tau_cum + error,
         sd = 4
       ))
     )
@@ -82,4 +91,18 @@ with_progress({
   p <- progressor(steps = n_sims)
   results <- future_lapply(1:n_sims, sim_fun, p = p, future.seed = TRUE)
 })
+
+
+
+# build balanced panel
+base <- expand.grid(unit = 1:(n_units*n_countries), wave = waves)
+base$country <- rep(1:n_countries, each = n_units * length(waves))
+
+# country fixed effects: one draw per country
+country_fe <- rnorm(n_countries, mean = (1:n_countries)/10, sd = 1)
+base$country_fe <- country_fe[base$country]
+
+# wave fixed effects: one draw per wave
+wave_fe <- rnorm(length(waves), mean = 0, sd = 0.5)
+base$wave_fe <- wave_fe[base$wave]
 
