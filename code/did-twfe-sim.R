@@ -19,7 +19,8 @@ base <- expand.grid(
   country = 1:n_countries, 
   wave    = 1:n_waves)
   
-# Cohort assignment: 24 never-treated, 2 cohort 2, 4 cohort 3, 8 cohort 4
+# Cohort assignment: 24 never-treated, 
+# 2 cohort 2, 4 cohort 3, 8 cohort 4
 treat_taus <- data.frame(
   country = 1:n_countries,
   cohort_wave = sort(c(rep(1, 24), rep(2, 2), 

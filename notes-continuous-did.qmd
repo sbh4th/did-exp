@@ -1,0 +1,262 @@
+---
+title: "Notes on Continuous Treatment DiD and Air Pollution (PM₂.₅)"
+format: html
+editor: visual
+---
+
+*Compiled from a reading of Callaway, Goodman-Bacon & Sant'Anna (2025) and related literature*
+
+---
+
+## 1. What PM₂.₅ Actually Measures
+
+PM₂.₅ is a **gravimetric mass measurement**: ambient air is pulled through a size-selective inlet (cutting particles >2.5 µm aerodynamic diameter) onto a filter, weighed before and after. The result is µg/m³ of total particle mass. It is deliberately agnostic about chemical composition.
+
+### Do the Components "Add Up"?
+
+In principle yes — by conservation of mass the chemical components should sum to total gravimetric mass. In practice they systematically do not, and the shortfall is informative. Typical reconstruction:
+
+| Component | Contribution |
+|---|---|
+| Sulfate (SO₄²⁻) | ~20–40% |
+| Nitrate (NO₃⁻) | ~10–20% |
+| Organic carbon (OC) | ~20–40% |
+| Elemental carbon (EC) | ~5–10% |
+| Crustal/mineral dust | ~5–15% |
+| Sea salt | ~1–5% |
+| Trace metals (Ni, Cu, V, Zn, Mn, K…) | ~1–5% |
+| **Reconstructed total** | **~80–110% of gravimetric mass** |
+
+Key sources of discrepancy:
+- **Water/hydration**: hygroscopic salts retain water even after filter conditioning
+- **Organic mass multiplier**: labs measure organic *carbon* only; a multiplier (1.4–2.1) converts OC → organic mass (OM). Getting this wrong propagates large errors
+- **Unmeasured species**: ammonium (NH₄⁺ is a key counterion to sulfate/nitrate), many trace organics
+- **Volatilization artifacts**: semi-volatile species (esp. ammonium nitrate) evaporate off filters post-collection
+- **Positive artifacts**: gas-phase organics adsorb onto filters during sampling
+
+### How Composition Is Determined
+
+- **Filter-based speciation (EPA CSN/IMPROVE networks)**: multiple filter splits sent to different labs for ion chromatography, XRF, and thermal-optical OC/EC analysis. Gives 24-hour time-averaged snapshots
+- **Source apportionment (receptor modeling)**: EPA PMF (Positive Matrix Factorization) decomposes a long time-series of speciated data into latent source factors. If Cu, Fe, and Ba co-vary across days, they likely share a source (e.g., brake wear)
+- **Online/continuous instruments**: ACSM gives near-real-time organics, sulfate, nitrate, ammonium; aethalometers measure black carbon
+- **Isotopic/molecular markers**: levoglucosan for biomass burning, hopanes for motor oil, etc.
+
+### Health Research Implications
+
+If PM₂.₅ mass is just a proxy for some causally toxic component, health effect estimates based on total mass will be attenuated. Studies (Six Cities work onward) suggest **transition metals, secondary sulfate, and combustion EC/BC** show stronger associations than crustal material — but separating these statistically is difficult due to correlation and measurement error.
+
+---
+
+## 2. The DiD Revolution and Continuous Treatments
+
+### Background: The Staggered Binary Treatment Problem
+
+The "revolution" in DiD (circa 2018–2023) showed that two-way fixed effects (TWFE) regressions with staggered binary treatments estimate non-convex — potentially sign-reversed — weighted averages of group-time treatment effects. The key papers: Goodman-Bacon (2021), Callaway & Sant'Anna (2021), de Chaisemartin & D'Haultfoeuille (2020), Sun & Abraham (2021), Borusyak, Jaravel & Spiess (2023).
+
+### Extending to Continuous Treatments
+
+Most of the revolution focused on binary treatments. Can the same logic apply to a continuous treatment like PM₂.₅? **Yes, but the problems are even deeper.**
+
+---
+
+## 3. The Core Paper: Callaway, Goodman-Bacon & Sant'Anna (2025)
+
+**Full citation:** Brantly Callaway, Andrew Goodman-Bacon, and Pedro H.C. Sant'Anna, "Difference-in-Differences with a Continuous Treatment," arXiv 2107.02637v8, December 2025. R package: `contdid` (on CRAN).
+
+### 3.1 Two Types of Treatment Effects — A Critical Distinction
+
+With a continuous treatment, there are two fundamentally different objects:
+
+**Level treatment effects (dose-response function):**
+- Yᵢ(d) − Yᵢ(0): the effect of dose *d* relative to no treatment
+- "What is the total causal effect of receiving dose d compared to no treatment?"
+- Estimand: **ATT(d|d)** = average level effect on units that actually received dose d
+
+**Causal responses (derivatives):**
+- Y′ᵢ(d): the derivative of potential outcomes with respect to dose
+- "What is the marginal effect of a small increase in dose at level d?"
+- Estimand: **ACRT(d|d)** = average causal response at dose d for units receiving dose d
+
+These coincide when treatment is binary but are genuinely different with continuous treatment. A large ATT(d|d) can coexist with near-zero or negative ACRT(d|d) — the policy had large total effects but further dose increases do little or harm. Confusing these leads to badly wrong policy conclusions.
+
+### 3.2 What Parallel Trends Buys You (and Doesn't)
+
+**Theorem 3.1 (Good news):** Under standard parallel trends (untreated potential outcomes trend the same across dose groups), **ATT(d|d)** is identified:
+
+> ATT(d|d) = E[ΔY | D=d] − E[ΔY | D=0]
+
+The dose-response *level* function is nonparametrically identified. This is the continuous analogue of the binary DiD ATT.
+
+**Theorem 3.2 (Bad news):** Under standard parallel trends, **causal responses are NOT identified.** Comparing outcome trends between adjacent dose groups gives:
+
+> E[ΔY|D=h] − E[ΔY|D=l] = ACRT(h|h) + **selection bias**
+
+where the selection bias = AT T(l|h) − AT T(l|l) — the difference in treatment effects *at the same dose* across different dose groups. Parallel trends doesn't restrict how treatment effects vary across groups, so this contamination is not ruled out. You're jumping from one ATT function to a different group's ATT function, and the slope of that jump is not the slope of either function.
+
+**Strong Parallel Trends (Assumption 5):** To identify causal responses, a stronger assumption is needed: the average outcome evolution for the *whole population* if everyone received dose d equals the observed path of dose-d units. This implies ATT(d|d) = ATE(d) for all doses — no selection into dose groups on the basis of treatment effect heterogeneity. Under SPT, causal responses *are* identified. Crucially, **pre-treatment tests cannot distinguish standard PT from SPT**, because SPT restricts treated potential outcomes (never observed pre-treatment).
+
+### 3.3 TWFE Is Even More Broken Than You Think
+
+The standard TWFE regression:
+
+> Yᵢₜ = θₜ + ηᵢ + β^twfe · **Dᵢ · Postₜ** + vᵢₜ
+
+can be decomposed in four different ways depending on the "building block" parameter used. None yield a clean causal interpretation:
+
+- **As a weighted average of ATT(d|d):** Weights integrate to *zero*, not one — β^twfe literally cannot be interpreted as an average treatment effect. It effectively runs a binary DiD using higher-dose units as "treated" and lower-dose as "control."
+- **As scaled ATT:** Weights integrate to one but include negative values.
+- **As causal response:** Weights are non-negative but there is a selection bias term plus weights differ from the dose density.
+- **As 2×2 effects:** Similar problems.
+
+These TWFE pathologies arise even with **only two time periods** — unlike binary staggered case issues, which require multiple periods. The problems are fundamentally about continuous treatment heterogeneity, not staggering.
+
+### 3.4 Proposed Estimators
+
+Building on Chen, Christensen & Kankanala (2023):
+
+- **For ATT(d|d):** Nonparametric sieve estimator of E[ΔY|D=d] − E[ΔY|D=0]. Achieves minimax optimal convergence rate in sup-norm; uniform confidence bands narrower than undersmoothing while maintaining correct coverage.
+- **For ACRT(d|d):** Derivative of E[ΔY|D=d] with respect to d under Strong PT.
+- **For summary scalars:**
+  - ATTₒ: run a *binary* DiD with treatment dummy = 1 for any D > 0. Correctly uses dose density as weights.
+  - ACRTₒ: estimate average derivative via "flexible" linear regression.
+
+### 3.5 What "Post" Means — And Why It Doesn't Apply to PM₂.₅
+
+Equation 1.1 requires a specific design: **Dᵢ × Postₜ** — a cross-product of a *fixed* dose variable and a *binary time switch*. This presupposes:
+- **Dᵢ is time-invariant** (measured at baseline, pre-event)
+- **Postₜ is a binary switch** at a well-defined calendar event (e.g., a regulatory reform)
+- Before the event, everyone is untreated; the dose "activates" after it
+
+This is the **differential exposure DiD design**: a policy event happens; units differ in pre-determined exposure to it; you trace outcome dynamics before and after.
+
+**For PM₂.₅, none of this holds:**
+- There is no "Post" — no well-defined event that turns the dose "on"
+- The dose Dᵢₜ is time-varying — the same monitor location has different PM₂.₅ readings year to year
+- Dᵢ · Postₜ cannot be formed when Dᵢ is itself time-varying
+
+The paper's core framework (main body, Sections 3–5) is built for the differential exposure design. PM₂.₅ as a purely observational environmental exposure is a structurally different problem.
+
+---
+
+## 4. The De Chaisemartin et al. Framework for Always-On Continuous Treatments
+
+### The Stayers/Switchers Setup
+
+De Chaisemartin, D'Haultfoeuille, Pasquier, Sow & Vazquez-Bare (2025), "Difference-in-Differences for Continuous Treatments and Instruments with Stayers." arXiv 2201.06898v8, August 2025. Stata/R package: `did_multiplegt_stat`.
+
+This paper is designed for the case where treatment Dᵢₜ varies over time for every unit — taxes, tariffs, prices. No "Post" required. Instead:
+- **Switchers**: units whose dose changes between consecutive periods
+- **Stayers**: units whose dose stays the same
+- DiD comparison: switchers vs. stayers *with the same baseline dose*, comparing outcome evolutions
+
+The parallel trends assumption: *switchers and stayers with the same period-one treatment would have experienced the same average outcome evolution if the switchers' treatment had not changed.* This is testable via pre-trend placebo tests when a period-zero is available.
+
+**Target parameters:** Average Of Switchers' Slopes (AOSS) — the average slope of switchers' period-two potential outcome function, from their period-one to period-two treatment. This is a local effect on switchers, not a global dose-response.
+
+### The PM₂.₅ Problem: No Stayers
+
+The stayers assumption requires units whose treatment doesn't change between consecutive periods. For ambient PM₂.₅ driven by meteorology and emissions, **there are essentially no stayers at any fine time scale.** Every county's PM₂.₅ varies year to year. The de Chaisemartin et al. papers acknowledge this explicitly.
+
+### The "Quasi-Stayers" Rescue
+
+The key theoretical innovation for the no-stayers case is **quasi-stayers** — units whose treatment change is infinitesimally small even if not exactly zero. The estimator takes the limit of stayer outcome changes as treatment change approaches zero:
+
+> Counterfactual trend ≈ E[ΔY | D₁ = d₁, ΔD → 0]
+
+estimated nonparametrically. For PM₂.₅ this is more defensible than true stayers: some counties will have PM₂.₅ that barely moves year-to-year (far from emission sources, stable meteorology), while others have large swings. The quasi-stayer estimator uses the former as a local nonparametric control for the latter, conditioning on the same baseline concentration level.
+
+**The assumption is testable**: you can run a pre-trend test comparing period-zero-to-one outcome evolutions of units that will become quasi-stayers vs. switchers.
+
+### The No-Stayers Extension
+
+De Chaisemartin, D'Haultfoeuille & Vazquez-Bare (2024), "Difference-in-Difference Estimators with Continuous Treatments and No Stayers," AEA Papers and Proceedings 114: 610–13. Explicitly addresses the temperature/precipitation case where all units' treatments change.
+
+---
+
+## 5. The Sun & Shapiro Impossibility Result
+
+Liyang Sun and Jesse M. Shapiro, "A Linear Panel Model with Heterogeneous Coefficients and Variation in Exposure," *Journal of Economic Perspectives* 36(4): 193–204, 2022.
+
+**Key result:** TWFE can fail to estimate the average (or even a weighted average) of units' coefficients under treatment effect heterogeneity. More starkly: **under some conditions, there exists no estimator that is guaranteed to estimate even a weighted average** — this is a nonparametric identification impossibility result, not just a statement about TWFE bias.
+
+The positive rescue: when there *is* a unit totally unaffected by treatment (D=0 always), it becomes possible to estimate an average effect by replacing TWFE with an average of DiD estimators. For PM₂.₅, that zero-exposure unit does not exist.
+
+This means that **for PM₂.₅ as a purely observational time-varying exposure with no policy event and no instrument, no estimator can be guaranteed to recover even a weighted average of causal effects under full treatment effect heterogeneity.**
+
+---
+
+## 6. What Can Actually Be Done? The Toolkit
+
+### Option 1: Quasi-Stayer/No-Stayers DiD (de Chaisemartin et al.)
+
+The closest to a design-based answer without an instrument. Requires:
+- Quasi-stayers exist (counties with near-zero year-to-year PM₂.₅ changes)
+- Their outcome trends are valid counterfactuals for counties with larger changes, *conditional on the same baseline dose*
+
+This is a conditional parallel trends assumption that is empirically testable. The causal interpretation is local to switchers (marginal effect of PM₂.₅ change), which may actually be the policy-relevant parameter. Implemented in `did_multiplegt_stat`.
+
+### Option 2: Instrumentation (Most Credible)
+
+Uses variation in pollution that is plausibly exogenous to health outcomes. Key instruments in the literature:
+
+| Instrument | Mechanism | Papers |
+|---|---|---|
+| Wind direction | PM₂.₅ transported from upwind emission sources | Deschenes, Greenstone, and others |
+| Wildfire smoke | Exogenous PM₂.₅ shock from distant fires | Burke et al. |
+| Thermal inversions | Meteorological trapping of local PM₂.₅ | Various |
+| NAAQS nonattainment | Regulatory threshold creates sharp dose change | RD/IV literature |
+
+The de Chaisemartin et al. framework has an explicit IV extension — you can use wind direction as an instrument for PM₂.₅ in the stayers/switchers framework and recover a Wald-type estimator of the causal response slope.
+
+### Option 3: Regression Discontinuity at Regulatory Thresholds
+
+NAAQS nonattainment designations create sharp thresholds in regulatory treatment. Counties just above a PM₂.₅ standard face mandatory abatement plans; counties just below do not. This generates a plausible discontinuity in *regulatory treatment*, which serves as a first stage for ambient PM₂.₅ changes. No parallel trends assumption required — identification is from the discontinuity.
+
+### Option 4: Dose-Density Reweighted TWFE (If You Must)
+
+If none of the above designs are available, the Callaway et al. contribution suggests replacing the variance-weighted TWFE with the dose-density-weighted summary measures they propose. Specifically:
+- For ATTₒ: binary DiD with treatment dummy = 1 for D > 0
+- For ACRTₒ: average derivative via flexible linear regression
+
+This doesn't solve the parallel trends problem but ensures you're estimating something with interpretable weights — a genuine average of unit-level effects under the maintained assumptions, rather than a badly-weighted mix.
+
+### Option 5: Synthetic Control / Matrix Completion
+
+For specific large pollution events (plant opening/closing, regulation change), synthetic control methods construct unit-specific counterfactuals from a donor pool, relaxing the parallel trends assumption at the cost of requiring a long pre-treatment period for fitting. Newer matrix completion methods (Athey et al., Bai & Ng) generalize this to arbitrary panel factor structures.
+
+---
+
+## 7. Summary Assessment
+
+| Design | Identifying Assumption | PM₂.₅ Applicability |
+|---|---|---|
+| TWFE with Dᵢ·Postₜ | Parallel trends + treatment effect homogeneity | Requires a discrete policy event activating dose |
+| Callaway et al. (2025) | Parallel trends (PT or Strong PT) + a "Post" event | Same — designed for differential exposure, not ambient levels |
+| De Chaisemartin stayers | Conditional PT for switchers vs. stayers with same baseline | Requires quasi-stayers; strong but testable assumption |
+| Sun-Shapiro impossibility | — | Without D=0 units or an instrument, no estimator guaranteed |
+| IV (wind, smoke, inversions) | Exclusion restriction + relevance | Most credible for ambient PM₂.₅; identifies LATE |
+| RD at nonattainment threshold | Continuity at threshold | Identifies local effect at regulatory threshold |
+| Synthetic control | No interference + pre-trend fit | Good for specific large events, not general ambient variation |
+
+### The Honest Bottom Line
+
+The recent DiD revolution has made things **harder** for ambient pollution research — not in the sense of making estimation harder in practice, but by clarifying what assumptions researchers were previously getting away with implicitly. For PM₂.₅ as a purely observational time-varying exposure with no policy event and no instrument:
+
+- The differential-exposure DiD (Callaway et al.) is **not applicable** — there is no "Post"
+- The stayers/switchers framework (de Chaisemartin et al.) **can be applied** but requires the quasi-stayers assumption, which is substantive
+- The Sun-Shapiro impossibility result means that under full treatment effect heterogeneity, **no estimator** can guarantee recovering even a weighted average causal effect
+
+The most credible work on PM₂.₅ health effects will continue to rely on **instruments** (wind direction, wildfire smoke, regulatory discontinuities) rather than DiD-type parallel trends arguments. DiD-type methods can be made to work but require very carefully defended conditional parallel trends assumptions about what drives year-to-year variation in PM₂.₅.
+
+---
+
+## 8. Key References
+
+- Callaway, B., Goodman-Bacon, A., & Sant'Anna, P.H.C. (2025). "Difference-in-Differences with a Continuous Treatment." arXiv 2107.02637v8. R package: `contdid` (CRAN).
+- Callaway, B., Goodman-Bacon, A., & Sant'Anna, P.H.C. (2024). "Event Studies with a Continuous Treatment." *AEA Papers and Proceedings* 114: 601–05.
+- De Chaisemartin, C., D'Haultfoeuille, X., Pasquier, F., Sow, D., & Vazquez-Bare, G. (2025). "Difference-in-Differences for Continuous Treatments and Instruments with Stayers." arXiv 2201.06898v8. Stata/R package: `did_multiplegt_stat`.
+- De Chaisemartin, C., D'Haultfoeuille, X., & Vazquez-Bare, G. (2024). "Difference-in-Difference Estimators with Continuous Treatments and No Stayers." *AEA Papers and Proceedings* 114: 610–13.
+- Sun, L. & Shapiro, J.M. (2022). "A Linear Panel Model with Heterogeneous Coefficients and Variation in Exposure." *Journal of Economic Perspectives* 36(4): 193–204.
+- Chen, X., Christensen, T., & Kankanala, S. (2023). Nonparametric IV sieve estimation methods used for the dose-response estimator in Callaway et al.
+- Roth, J., Sant'Anna, P.H.C., Bilinski, A., & Poe, J. (2023). "What's Trending in Difference-in-Differences? A Synthesis of the Recent Econometrics Literature." *Journal of Econometrics* 235(2): 2218–2244.
+

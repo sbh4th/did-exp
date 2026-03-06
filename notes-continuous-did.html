@@ -1,0 +1,791 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.8.26">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>Notes on Continuous Treatment DiD and Air Pollution (PM₂.₅)</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+</style>
+
+
+<script src="notes-continuous-did_files/libs/clipboard/clipboard.min.js"></script>
+<script src="notes-continuous-did_files/libs/quarto-html/quarto.js" type="module"></script>
+<script src="notes-continuous-did_files/libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="notes-continuous-did_files/libs/quarto-html/axe/axe-check.js" type="module"></script>
+<script src="notes-continuous-did_files/libs/quarto-html/popper.min.js"></script>
+<script src="notes-continuous-did_files/libs/quarto-html/tippy.umd.min.js"></script>
+<script src="notes-continuous-did_files/libs/quarto-html/anchor.min.js"></script>
+<link href="notes-continuous-did_files/libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="notes-continuous-did_files/libs/quarto-html/quarto-syntax-highlighting-587c61ba64f3a5504c4d52d930310e48.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="notes-continuous-did_files/libs/bootstrap/bootstrap.min.js"></script>
+<link href="notes-continuous-did_files/libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="notes-continuous-did_files/libs/bootstrap/bootstrap-d6a003b94517c951b2d65075d42fb01b.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+
+
+</head>
+
+<body class="fullcontent quarto-light">
+
+<div id="quarto-content" class="page-columns page-rows-contents page-layout-article">
+
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">Notes on Continuous Treatment DiD and Air Pollution (PM₂.₅)</h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<p><em>Compiled from a reading of Callaway, Goodman-Bacon &amp; Sant’Anna (2025) and related literature</em></p>
+<hr>
+<section id="what-pm₂.₅-actually-measures" class="level2">
+<h2 class="anchored" data-anchor-id="what-pm₂.₅-actually-measures">1. What PM₂.₅ Actually Measures</h2>
+<p>PM₂.₅ is a <strong>gravimetric mass measurement</strong>: ambient air is pulled through a size-selective inlet (cutting particles &gt;2.5 µm aerodynamic diameter) onto a filter, weighed before and after. The result is µg/m³ of total particle mass. It is deliberately agnostic about chemical composition.</p>
+<section id="do-the-components-add-up" class="level3">
+<h3 class="anchored" data-anchor-id="do-the-components-add-up">Do the Components “Add Up”?</h3>
+<p>In principle yes — by conservation of mass the chemical components should sum to total gravimetric mass. In practice they systematically do not, and the shortfall is informative. Typical reconstruction:</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Component</th>
+<th>Contribution</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Sulfate (SO₄²⁻)</td>
+<td>~20–40%</td>
+</tr>
+<tr class="even">
+<td>Nitrate (NO₃⁻)</td>
+<td>~10–20%</td>
+</tr>
+<tr class="odd">
+<td>Organic carbon (OC)</td>
+<td>~20–40%</td>
+</tr>
+<tr class="even">
+<td>Elemental carbon (EC)</td>
+<td>~5–10%</td>
+</tr>
+<tr class="odd">
+<td>Crustal/mineral dust</td>
+<td>~5–15%</td>
+</tr>
+<tr class="even">
+<td>Sea salt</td>
+<td>~1–5%</td>
+</tr>
+<tr class="odd">
+<td>Trace metals (Ni, Cu, V, Zn, Mn, K…)</td>
+<td>~1–5%</td>
+</tr>
+<tr class="even">
+<td><strong>Reconstructed total</strong></td>
+<td><strong>~80–110% of gravimetric mass</strong></td>
+</tr>
+</tbody>
+</table>
+<p>Key sources of discrepancy: - <strong>Water/hydration</strong>: hygroscopic salts retain water even after filter conditioning - <strong>Organic mass multiplier</strong>: labs measure organic <em>carbon</em> only; a multiplier (1.4–2.1) converts OC → organic mass (OM). Getting this wrong propagates large errors - <strong>Unmeasured species</strong>: ammonium (NH₄⁺ is a key counterion to sulfate/nitrate), many trace organics - <strong>Volatilization artifacts</strong>: semi-volatile species (esp.&nbsp;ammonium nitrate) evaporate off filters post-collection - <strong>Positive artifacts</strong>: gas-phase organics adsorb onto filters during sampling</p>
+</section>
+<section id="how-composition-is-determined" class="level3">
+<h3 class="anchored" data-anchor-id="how-composition-is-determined">How Composition Is Determined</h3>
+<ul>
+<li><strong>Filter-based speciation (EPA CSN/IMPROVE networks)</strong>: multiple filter splits sent to different labs for ion chromatography, XRF, and thermal-optical OC/EC analysis. Gives 24-hour time-averaged snapshots</li>
+<li><strong>Source apportionment (receptor modeling)</strong>: EPA PMF (Positive Matrix Factorization) decomposes a long time-series of speciated data into latent source factors. If Cu, Fe, and Ba co-vary across days, they likely share a source (e.g., brake wear)</li>
+<li><strong>Online/continuous instruments</strong>: ACSM gives near-real-time organics, sulfate, nitrate, ammonium; aethalometers measure black carbon</li>
+<li><strong>Isotopic/molecular markers</strong>: levoglucosan for biomass burning, hopanes for motor oil, etc.</li>
+</ul>
+</section>
+<section id="health-research-implications" class="level3">
+<h3 class="anchored" data-anchor-id="health-research-implications">Health Research Implications</h3>
+<p>If PM₂.₅ mass is just a proxy for some causally toxic component, health effect estimates based on total mass will be attenuated. Studies (Six Cities work onward) suggest <strong>transition metals, secondary sulfate, and combustion EC/BC</strong> show stronger associations than crustal material — but separating these statistically is difficult due to correlation and measurement error.</p>
+<hr>
+</section>
+</section>
+<section id="the-did-revolution-and-continuous-treatments" class="level2">
+<h2 class="anchored" data-anchor-id="the-did-revolution-and-continuous-treatments">2. The DiD Revolution and Continuous Treatments</h2>
+<section id="background-the-staggered-binary-treatment-problem" class="level3">
+<h3 class="anchored" data-anchor-id="background-the-staggered-binary-treatment-problem">Background: The Staggered Binary Treatment Problem</h3>
+<p>The “revolution” in DiD (circa 2018–2023) showed that two-way fixed effects (TWFE) regressions with staggered binary treatments estimate non-convex — potentially sign-reversed — weighted averages of group-time treatment effects. The key papers: Goodman-Bacon (2021), Callaway &amp; Sant’Anna (2021), de Chaisemartin &amp; D’Haultfoeuille (2020), Sun &amp; Abraham (2021), Borusyak, Jaravel &amp; Spiess (2023).</p>
+</section>
+<section id="extending-to-continuous-treatments" class="level3">
+<h3 class="anchored" data-anchor-id="extending-to-continuous-treatments">Extending to Continuous Treatments</h3>
+<p>Most of the revolution focused on binary treatments. Can the same logic apply to a continuous treatment like PM₂.₅? <strong>Yes, but the problems are even deeper.</strong></p>
+<hr>
+</section>
+</section>
+<section id="the-core-paper-callaway-goodman-bacon-santanna-2025" class="level2">
+<h2 class="anchored" data-anchor-id="the-core-paper-callaway-goodman-bacon-santanna-2025">3. The Core Paper: Callaway, Goodman-Bacon &amp; Sant’Anna (2025)</h2>
+<p><strong>Full citation:</strong> Brantly Callaway, Andrew Goodman-Bacon, and Pedro H.C. Sant’Anna, “Difference-in-Differences with a Continuous Treatment,” arXiv 2107.02637v8, December 2025. R package: <code>contdid</code> (on CRAN).</p>
+<section id="two-types-of-treatment-effects-a-critical-distinction" class="level3">
+<h3 class="anchored" data-anchor-id="two-types-of-treatment-effects-a-critical-distinction">3.1 Two Types of Treatment Effects — A Critical Distinction</h3>
+<p>With a continuous treatment, there are two fundamentally different objects:</p>
+<p><strong>Level treatment effects (dose-response function):</strong> - Yᵢ(d) − Yᵢ(0): the effect of dose <em>d</em> relative to no treatment - “What is the total causal effect of receiving dose d compared to no treatment?” - Estimand: <strong>ATT(d|d)</strong> = average level effect on units that actually received dose d</p>
+<p><strong>Causal responses (derivatives):</strong> - Y′ᵢ(d): the derivative of potential outcomes with respect to dose - “What is the marginal effect of a small increase in dose at level d?” - Estimand: <strong>ACRT(d|d)</strong> = average causal response at dose d for units receiving dose d</p>
+<p>These coincide when treatment is binary but are genuinely different with continuous treatment. A large ATT(d|d) can coexist with near-zero or negative ACRT(d|d) — the policy had large total effects but further dose increases do little or harm. Confusing these leads to badly wrong policy conclusions.</p>
+</section>
+<section id="what-parallel-trends-buys-you-and-doesnt" class="level3">
+<h3 class="anchored" data-anchor-id="what-parallel-trends-buys-you-and-doesnt">3.2 What Parallel Trends Buys You (and Doesn’t)</h3>
+<p><strong>Theorem 3.1 (Good news):</strong> Under standard parallel trends (untreated potential outcomes trend the same across dose groups), <strong>ATT(d|d)</strong> is identified:</p>
+<blockquote class="blockquote">
+<p>ATT(d|d) = E[ΔY | D=d] − E[ΔY | D=0]</p>
+</blockquote>
+<p>The dose-response <em>level</em> function is nonparametrically identified. This is the continuous analogue of the binary DiD ATT.</p>
+<p><strong>Theorem 3.2 (Bad news):</strong> Under standard parallel trends, <strong>causal responses are NOT identified.</strong> Comparing outcome trends between adjacent dose groups gives:</p>
+<blockquote class="blockquote">
+<p>E[ΔY|D=h] − E[ΔY|D=l] = ACRT(h|h) + <strong>selection bias</strong></p>
+</blockquote>
+<p>where the selection bias = AT T(l|h) − AT T(l|l) — the difference in treatment effects <em>at the same dose</em> across different dose groups. Parallel trends doesn’t restrict how treatment effects vary across groups, so this contamination is not ruled out. You’re jumping from one ATT function to a different group’s ATT function, and the slope of that jump is not the slope of either function.</p>
+<p><strong>Strong Parallel Trends (Assumption 5):</strong> To identify causal responses, a stronger assumption is needed: the average outcome evolution for the <em>whole population</em> if everyone received dose d equals the observed path of dose-d units. This implies ATT(d|d) = ATE(d) for all doses — no selection into dose groups on the basis of treatment effect heterogeneity. Under SPT, causal responses <em>are</em> identified. Crucially, <strong>pre-treatment tests cannot distinguish standard PT from SPT</strong>, because SPT restricts treated potential outcomes (never observed pre-treatment).</p>
+</section>
+<section id="twfe-is-even-more-broken-than-you-think" class="level3">
+<h3 class="anchored" data-anchor-id="twfe-is-even-more-broken-than-you-think">3.3 TWFE Is Even More Broken Than You Think</h3>
+<p>The standard TWFE regression:</p>
+<blockquote class="blockquote">
+<p>Yᵢₜ = θₜ + ηᵢ + β^twfe · <strong>Dᵢ · Postₜ</strong> + vᵢₜ</p>
+</blockquote>
+<p>can be decomposed in four different ways depending on the “building block” parameter used. None yield a clean causal interpretation:</p>
+<ul>
+<li><strong>As a weighted average of ATT(d|d):</strong> Weights integrate to <em>zero</em>, not one — β^twfe literally cannot be interpreted as an average treatment effect. It effectively runs a binary DiD using higher-dose units as “treated” and lower-dose as “control.”</li>
+<li><strong>As scaled ATT:</strong> Weights integrate to one but include negative values.</li>
+<li><strong>As causal response:</strong> Weights are non-negative but there is a selection bias term plus weights differ from the dose density.</li>
+<li><strong>As 2×2 effects:</strong> Similar problems.</li>
+</ul>
+<p>These TWFE pathologies arise even with <strong>only two time periods</strong> — unlike binary staggered case issues, which require multiple periods. The problems are fundamentally about continuous treatment heterogeneity, not staggering.</p>
+</section>
+<section id="proposed-estimators" class="level3">
+<h3 class="anchored" data-anchor-id="proposed-estimators">3.4 Proposed Estimators</h3>
+<p>Building on Chen, Christensen &amp; Kankanala (2023):</p>
+<ul>
+<li><strong>For ATT(d|d):</strong> Nonparametric sieve estimator of E[ΔY|D=d] − E[ΔY|D=0]. Achieves minimax optimal convergence rate in sup-norm; uniform confidence bands narrower than undersmoothing while maintaining correct coverage.</li>
+<li><strong>For ACRT(d|d):</strong> Derivative of E[ΔY|D=d] with respect to d under Strong PT.</li>
+<li><strong>For summary scalars:</strong>
+<ul>
+<li>ATTₒ: run a <em>binary</em> DiD with treatment dummy = 1 for any D &gt; 0. Correctly uses dose density as weights.</li>
+<li>ACRTₒ: estimate average derivative via “flexible” linear regression.</li>
+</ul></li>
+</ul>
+</section>
+<section id="what-post-means-and-why-it-doesnt-apply-to-pm₂.₅" class="level3">
+<h3 class="anchored" data-anchor-id="what-post-means-and-why-it-doesnt-apply-to-pm₂.₅">3.5 What “Post” Means — And Why It Doesn’t Apply to PM₂.₅</h3>
+<p>Equation 1.1 requires a specific design: <strong>Dᵢ × Postₜ</strong> — a cross-product of a <em>fixed</em> dose variable and a <em>binary time switch</em>. This presupposes: - <strong>Dᵢ is time-invariant</strong> (measured at baseline, pre-event) - <strong>Postₜ is a binary switch</strong> at a well-defined calendar event (e.g., a regulatory reform) - Before the event, everyone is untreated; the dose “activates” after it</p>
+<p>This is the <strong>differential exposure DiD design</strong>: a policy event happens; units differ in pre-determined exposure to it; you trace outcome dynamics before and after.</p>
+<p><strong>For PM₂.₅, none of this holds:</strong> - There is no “Post” — no well-defined event that turns the dose “on” - The dose Dᵢₜ is time-varying — the same monitor location has different PM₂.₅ readings year to year - Dᵢ · Postₜ cannot be formed when Dᵢ is itself time-varying</p>
+<p>The paper’s core framework (main body, Sections 3–5) is built for the differential exposure design. PM₂.₅ as a purely observational environmental exposure is a structurally different problem.</p>
+<hr>
+</section>
+</section>
+<section id="the-de-chaisemartin-et-al.-framework-for-always-on-continuous-treatments" class="level2">
+<h2 class="anchored" data-anchor-id="the-de-chaisemartin-et-al.-framework-for-always-on-continuous-treatments">4. The De Chaisemartin et al.&nbsp;Framework for Always-On Continuous Treatments</h2>
+<section id="the-stayersswitchers-setup" class="level3">
+<h3 class="anchored" data-anchor-id="the-stayersswitchers-setup">The Stayers/Switchers Setup</h3>
+<p>De Chaisemartin, D’Haultfoeuille, Pasquier, Sow &amp; Vazquez-Bare (2025), “Difference-in-Differences for Continuous Treatments and Instruments with Stayers.” arXiv 2201.06898v8, August 2025. Stata/R package: <code>did_multiplegt_stat</code>.</p>
+<p>This paper is designed for the case where treatment Dᵢₜ varies over time for every unit — taxes, tariffs, prices. No “Post” required. Instead: - <strong>Switchers</strong>: units whose dose changes between consecutive periods - <strong>Stayers</strong>: units whose dose stays the same - DiD comparison: switchers vs.&nbsp;stayers <em>with the same baseline dose</em>, comparing outcome evolutions</p>
+<p>The parallel trends assumption: <em>switchers and stayers with the same period-one treatment would have experienced the same average outcome evolution if the switchers’ treatment had not changed.</em> This is testable via pre-trend placebo tests when a period-zero is available.</p>
+<p><strong>Target parameters:</strong> Average Of Switchers’ Slopes (AOSS) — the average slope of switchers’ period-two potential outcome function, from their period-one to period-two treatment. This is a local effect on switchers, not a global dose-response.</p>
+</section>
+<section id="the-pm₂.₅-problem-no-stayers" class="level3">
+<h3 class="anchored" data-anchor-id="the-pm₂.₅-problem-no-stayers">The PM₂.₅ Problem: No Stayers</h3>
+<p>The stayers assumption requires units whose treatment doesn’t change between consecutive periods. For ambient PM₂.₅ driven by meteorology and emissions, <strong>there are essentially no stayers at any fine time scale.</strong> Every county’s PM₂.₅ varies year to year. The de Chaisemartin et al.&nbsp;papers acknowledge this explicitly.</p>
+</section>
+<section id="the-quasi-stayers-rescue" class="level3">
+<h3 class="anchored" data-anchor-id="the-quasi-stayers-rescue">The “Quasi-Stayers” Rescue</h3>
+<p>The key theoretical innovation for the no-stayers case is <strong>quasi-stayers</strong> — units whose treatment change is infinitesimally small even if not exactly zero. The estimator takes the limit of stayer outcome changes as treatment change approaches zero:</p>
+<blockquote class="blockquote">
+<p>Counterfactual trend ≈ E[ΔY | D₁ = d₁, ΔD → 0]</p>
+</blockquote>
+<p>estimated nonparametrically. For PM₂.₅ this is more defensible than true stayers: some counties will have PM₂.₅ that barely moves year-to-year (far from emission sources, stable meteorology), while others have large swings. The quasi-stayer estimator uses the former as a local nonparametric control for the latter, conditioning on the same baseline concentration level.</p>
+<p><strong>The assumption is testable</strong>: you can run a pre-trend test comparing period-zero-to-one outcome evolutions of units that will become quasi-stayers vs.&nbsp;switchers.</p>
+</section>
+<section id="the-no-stayers-extension" class="level3">
+<h3 class="anchored" data-anchor-id="the-no-stayers-extension">The No-Stayers Extension</h3>
+<p>De Chaisemartin, D’Haultfoeuille &amp; Vazquez-Bare (2024), “Difference-in-Difference Estimators with Continuous Treatments and No Stayers,” AEA Papers and Proceedings 114: 610–13. Explicitly addresses the temperature/precipitation case where all units’ treatments change.</p>
+<hr>
+</section>
+</section>
+<section id="the-sun-shapiro-impossibility-result" class="level2">
+<h2 class="anchored" data-anchor-id="the-sun-shapiro-impossibility-result">5. The Sun &amp; Shapiro Impossibility Result</h2>
+<p>Liyang Sun and Jesse M. Shapiro, “A Linear Panel Model with Heterogeneous Coefficients and Variation in Exposure,” <em>Journal of Economic Perspectives</em> 36(4): 193–204, 2022.</p>
+<p><strong>Key result:</strong> TWFE can fail to estimate the average (or even a weighted average) of units’ coefficients under treatment effect heterogeneity. More starkly: <strong>under some conditions, there exists no estimator that is guaranteed to estimate even a weighted average</strong> — this is a nonparametric identification impossibility result, not just a statement about TWFE bias.</p>
+<p>The positive rescue: when there <em>is</em> a unit totally unaffected by treatment (D=0 always), it becomes possible to estimate an average effect by replacing TWFE with an average of DiD estimators. For PM₂.₅, that zero-exposure unit does not exist.</p>
+<p>This means that <strong>for PM₂.₅ as a purely observational time-varying exposure with no policy event and no instrument, no estimator can be guaranteed to recover even a weighted average of causal effects under full treatment effect heterogeneity.</strong></p>
+<hr>
+</section>
+<section id="what-can-actually-be-done-the-toolkit" class="level2">
+<h2 class="anchored" data-anchor-id="what-can-actually-be-done-the-toolkit">6. What Can Actually Be Done? The Toolkit</h2>
+<section id="option-1-quasi-stayerno-stayers-did-de-chaisemartin-et-al." class="level3">
+<h3 class="anchored" data-anchor-id="option-1-quasi-stayerno-stayers-did-de-chaisemartin-et-al.">Option 1: Quasi-Stayer/No-Stayers DiD (de Chaisemartin et al.)</h3>
+<p>The closest to a design-based answer without an instrument. Requires: - Quasi-stayers exist (counties with near-zero year-to-year PM₂.₅ changes) - Their outcome trends are valid counterfactuals for counties with larger changes, <em>conditional on the same baseline dose</em></p>
+<p>This is a conditional parallel trends assumption that is empirically testable. The causal interpretation is local to switchers (marginal effect of PM₂.₅ change), which may actually be the policy-relevant parameter. Implemented in <code>did_multiplegt_stat</code>.</p>
+</section>
+<section id="option-2-instrumentation-most-credible" class="level3">
+<h3 class="anchored" data-anchor-id="option-2-instrumentation-most-credible">Option 2: Instrumentation (Most Credible)</h3>
+<p>Uses variation in pollution that is plausibly exogenous to health outcomes. Key instruments in the literature:</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Instrument</th>
+<th>Mechanism</th>
+<th>Papers</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Wind direction</td>
+<td>PM₂.₅ transported from upwind emission sources</td>
+<td>Deschenes, Greenstone, and others</td>
+</tr>
+<tr class="even">
+<td>Wildfire smoke</td>
+<td>Exogenous PM₂.₅ shock from distant fires</td>
+<td>Burke et al.</td>
+</tr>
+<tr class="odd">
+<td>Thermal inversions</td>
+<td>Meteorological trapping of local PM₂.₅</td>
+<td>Various</td>
+</tr>
+<tr class="even">
+<td>NAAQS nonattainment</td>
+<td>Regulatory threshold creates sharp dose change</td>
+<td>RD/IV literature</td>
+</tr>
+</tbody>
+</table>
+<p>The de Chaisemartin et al.&nbsp;framework has an explicit IV extension — you can use wind direction as an instrument for PM₂.₅ in the stayers/switchers framework and recover a Wald-type estimator of the causal response slope.</p>
+</section>
+<section id="option-3-regression-discontinuity-at-regulatory-thresholds" class="level3">
+<h3 class="anchored" data-anchor-id="option-3-regression-discontinuity-at-regulatory-thresholds">Option 3: Regression Discontinuity at Regulatory Thresholds</h3>
+<p>NAAQS nonattainment designations create sharp thresholds in regulatory treatment. Counties just above a PM₂.₅ standard face mandatory abatement plans; counties just below do not. This generates a plausible discontinuity in <em>regulatory treatment</em>, which serves as a first stage for ambient PM₂.₅ changes. No parallel trends assumption required — identification is from the discontinuity.</p>
+</section>
+<section id="option-4-dose-density-reweighted-twfe-if-you-must" class="level3">
+<h3 class="anchored" data-anchor-id="option-4-dose-density-reweighted-twfe-if-you-must">Option 4: Dose-Density Reweighted TWFE (If You Must)</h3>
+<p>If none of the above designs are available, the Callaway et al.&nbsp;contribution suggests replacing the variance-weighted TWFE with the dose-density-weighted summary measures they propose. Specifically: - For ATTₒ: binary DiD with treatment dummy = 1 for D &gt; 0 - For ACRTₒ: average derivative via flexible linear regression</p>
+<p>This doesn’t solve the parallel trends problem but ensures you’re estimating something with interpretable weights — a genuine average of unit-level effects under the maintained assumptions, rather than a badly-weighted mix.</p>
+</section>
+<section id="option-5-synthetic-control-matrix-completion" class="level3">
+<h3 class="anchored" data-anchor-id="option-5-synthetic-control-matrix-completion">Option 5: Synthetic Control / Matrix Completion</h3>
+<p>For specific large pollution events (plant opening/closing, regulation change), synthetic control methods construct unit-specific counterfactuals from a donor pool, relaxing the parallel trends assumption at the cost of requiring a long pre-treatment period for fitting. Newer matrix completion methods (Athey et al., Bai &amp; Ng) generalize this to arbitrary panel factor structures.</p>
+<hr>
+</section>
+</section>
+<section id="summary-assessment" class="level2">
+<h2 class="anchored" data-anchor-id="summary-assessment">7. Summary Assessment</h2>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Design</th>
+<th>Identifying Assumption</th>
+<th>PM₂.₅ Applicability</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>TWFE with Dᵢ·Postₜ</td>
+<td>Parallel trends + treatment effect homogeneity</td>
+<td>Requires a discrete policy event activating dose</td>
+</tr>
+<tr class="even">
+<td>Callaway et al.&nbsp;(2025)</td>
+<td>Parallel trends (PT or Strong PT) + a “Post” event</td>
+<td>Same — designed for differential exposure, not ambient levels</td>
+</tr>
+<tr class="odd">
+<td>De Chaisemartin stayers</td>
+<td>Conditional PT for switchers vs.&nbsp;stayers with same baseline</td>
+<td>Requires quasi-stayers; strong but testable assumption</td>
+</tr>
+<tr class="even">
+<td>Sun-Shapiro impossibility</td>
+<td>—</td>
+<td>Without D=0 units or an instrument, no estimator guaranteed</td>
+</tr>
+<tr class="odd">
+<td>IV (wind, smoke, inversions)</td>
+<td>Exclusion restriction + relevance</td>
+<td>Most credible for ambient PM₂.₅; identifies LATE</td>
+</tr>
+<tr class="even">
+<td>RD at nonattainment threshold</td>
+<td>Continuity at threshold</td>
+<td>Identifies local effect at regulatory threshold</td>
+</tr>
+<tr class="odd">
+<td>Synthetic control</td>
+<td>No interference + pre-trend fit</td>
+<td>Good for specific large events, not general ambient variation</td>
+</tr>
+</tbody>
+</table>
+<section id="the-honest-bottom-line" class="level3">
+<h3 class="anchored" data-anchor-id="the-honest-bottom-line">The Honest Bottom Line</h3>
+<p>The recent DiD revolution has made things <strong>harder</strong> for ambient pollution research — not in the sense of making estimation harder in practice, but by clarifying what assumptions researchers were previously getting away with implicitly. For PM₂.₅ as a purely observational time-varying exposure with no policy event and no instrument:</p>
+<ul>
+<li>The differential-exposure DiD (Callaway et al.) is <strong>not applicable</strong> — there is no “Post”</li>
+<li>The stayers/switchers framework (de Chaisemartin et al.) <strong>can be applied</strong> but requires the quasi-stayers assumption, which is substantive</li>
+<li>The Sun-Shapiro impossibility result means that under full treatment effect heterogeneity, <strong>no estimator</strong> can guarantee recovering even a weighted average causal effect</li>
+</ul>
+<p>The most credible work on PM₂.₅ health effects will continue to rely on <strong>instruments</strong> (wind direction, wildfire smoke, regulatory discontinuities) rather than DiD-type parallel trends arguments. DiD-type methods can be made to work but require very carefully defended conditional parallel trends assumptions about what drives year-to-year variation in PM₂.₅.</p>
+<hr>
+</section>
+</section>
+<section id="key-references" class="level2">
+<h2 class="anchored" data-anchor-id="key-references">8. Key References</h2>
+<ul>
+<li>Callaway, B., Goodman-Bacon, A., &amp; Sant’Anna, P.H.C. (2025). “Difference-in-Differences with a Continuous Treatment.” arXiv 2107.02637v8. R package: <code>contdid</code> (CRAN).</li>
+<li>Callaway, B., Goodman-Bacon, A., &amp; Sant’Anna, P.H.C. (2024). “Event Studies with a Continuous Treatment.” <em>AEA Papers and Proceedings</em> 114: 601–05.</li>
+<li>De Chaisemartin, C., D’Haultfoeuille, X., Pasquier, F., Sow, D., &amp; Vazquez-Bare, G. (2025). “Difference-in-Differences for Continuous Treatments and Instruments with Stayers.” arXiv 2201.06898v8. Stata/R package: <code>did_multiplegt_stat</code>.</li>
+<li>De Chaisemartin, C., D’Haultfoeuille, X., &amp; Vazquez-Bare, G. (2024). “Difference-in-Difference Estimators with Continuous Treatments and No Stayers.” <em>AEA Papers and Proceedings</em> 114: 610–13.</li>
+<li>Sun, L. &amp; Shapiro, J.M. (2022). “A Linear Panel Model with Heterogeneous Coefficients and Variation in Exposure.” <em>Journal of Economic Perspectives</em> 36(4): 193–204.</li>
+<li>Chen, X., Christensen, T., &amp; Kankanala, S. (2023). Nonparametric IV sieve estimation methods used for the dose-response estimator in Callaway et al.</li>
+<li>Roth, J., Sant’Anna, P.H.C., Bilinski, A., &amp; Poe, J. (2023). “What’s Trending in Difference-in-Differences? A Synthesis of the Recent Econometrics Literature.” <em>Journal of Econometrics</em> 235(2): 2218–2244.</li>
+</ul>
+</section>
+
+</main>
+<!-- /main column -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+</div> <!-- /content -->
+
+
+
+
+</body></html>
