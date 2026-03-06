@@ -245,7 +245,40 @@ ul.task-list li input[type="checkbox"] {
 <section id="option-1-quasi-stayerno-stayers-did-de-chaisemartin-et-al." class="level3">
 <h3 class="anchored" data-anchor-id="option-1-quasi-stayerno-stayers-did-de-chaisemartin-et-al.">Option 1: Quasi-Stayer/No-Stayers DiD (de Chaisemartin et al.)</h3>
 <p>The closest to a design-based answer without an instrument. Requires: - Quasi-stayers exist (counties with near-zero year-to-year PM₂.₅ changes) - Their outcome trends are valid counterfactuals for counties with larger changes, <em>conditional on the same baseline dose</em></p>
-<p>This is a conditional parallel trends assumption that is empirically testable. The causal interpretation is local to switchers (marginal effect of PM₂.₅ change), which may actually be the policy-relevant parameter. Implemented in <code>did_multiplegt_stat</code>.</p>
+<p>This is a conditional parallel trends assumption that is empirically testable. The causal interpretation is local to switchers (marginal effect of PM₂.₅ change), which may actually be the policy-relevant parameter.</p>
+<p><strong>Important note on software implementation</strong> — there are three distinct scenarios with different packages:</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Scenario</th>
+<th>Package</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Continuous Dᵢₜ, stayers exist</td>
+<td><code>did_multiplegt_stat</code></td>
+<td>Requires that some units’ treatment genuinely doesn’t change between periods</td>
+</tr>
+<tr class="even">
+<td>All units go from D=0 to D&gt;0, no untreated control</td>
+<td><code>did_had</code> (Stata: <code>ssc install did_had</code>)</td>
+<td>Heterogeneous adoption design; uses quasi-stayers as controls</td>
+</tr>
+<tr class="odd">
+<td>Fully always-on continuous Dᵢₜ, no stayers</td>
+<td><strong>No dedicated package yet</strong></td>
+<td>Theory exists in de Chaisemartin et al.&nbsp;(2024) AEA P&amp;P; replication code available but no canned estimator</td>
+</tr>
+</tbody>
+</table>
+<p>For ambient PM₂.₅, the relevant case is the third row. <code>did_multiplegt_stat</code> explicitly requires stayers — its entire estimation logic (regression adjustment or propensity-score reweighting of stayers’ outcome changes) depends on stayers being present. The quasi-stayers/no-stayers estimator for always-on continuous treatments exists in theory and in a replication package, but has not yet been rolled into a turnkey command.</p>
 </section>
 <section id="option-2-instrumentation-most-credible" class="level3">
 <h3 class="anchored" data-anchor-id="option-2-instrumentation-most-credible">Option 2: Instrumentation (Most Credible)</h3>
@@ -373,7 +406,8 @@ ul.task-list li input[type="checkbox"] {
 <ul>
 <li>Callaway, B., Goodman-Bacon, A., &amp; Sant’Anna, P.H.C. (2025). “Difference-in-Differences with a Continuous Treatment.” arXiv 2107.02637v8. R package: <code>contdid</code> (CRAN).</li>
 <li>Callaway, B., Goodman-Bacon, A., &amp; Sant’Anna, P.H.C. (2024). “Event Studies with a Continuous Treatment.” <em>AEA Papers and Proceedings</em> 114: 601–05.</li>
-<li>De Chaisemartin, C., D’Haultfoeuille, X., Pasquier, F., Sow, D., &amp; Vazquez-Bare, G. (2025). “Difference-in-Differences for Continuous Treatments and Instruments with Stayers.” arXiv 2201.06898v8. Stata/R package: <code>did_multiplegt_stat</code>.</li>
+<li>De Chaisemartin, C., D’Haultfoeuille, X., Pasquier, F., Sow, D., &amp; Vazquez-Bare, G. (2025). “Difference-in-Differences for Continuous Treatments and Instruments with Stayers.” arXiv 2201.06898v8. Stata/R package: <code>did_multiplegt_stat</code> — <strong>requires stayers to be present</strong>.</li>
+<li>De Chaisemartin, C., Ciccia, D., D’Haultfoeuille, X., &amp; Knau, F. (2024). Heterogeneous adoption designs without stayers. Stata package: <code>did_had</code> (<code>ssc install did_had</code>) — for the case where all units adopt a positive dose at the same time, with no untreated control group.</li>
 <li>De Chaisemartin, C., D’Haultfoeuille, X., &amp; Vazquez-Bare, G. (2024). “Difference-in-Difference Estimators with Continuous Treatments and No Stayers.” <em>AEA Papers and Proceedings</em> 114: 610–13.</li>
 <li>Sun, L. &amp; Shapiro, J.M. (2022). “A Linear Panel Model with Heterogeneous Coefficients and Variation in Exposure.” <em>Journal of Economic Perspectives</em> 36(4): 193–204.</li>
 <li>Chen, X., Christensen, T., &amp; Kankanala, S. (2023). Nonparametric IV sieve estimation methods used for the dose-response estimator in Callaway et al.</li>

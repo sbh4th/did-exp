@@ -193,7 +193,17 @@ The closest to a design-based answer without an instrument. Requires:
 - Quasi-stayers exist (counties with near-zero year-to-year PM₂.₅ changes)
 - Their outcome trends are valid counterfactuals for counties with larger changes, *conditional on the same baseline dose*
 
-This is a conditional parallel trends assumption that is empirically testable. The causal interpretation is local to switchers (marginal effect of PM₂.₅ change), which may actually be the policy-relevant parameter. Implemented in `did_multiplegt_stat`.
+This is a conditional parallel trends assumption that is empirically testable. The causal interpretation is local to switchers (marginal effect of PM₂.₅ change), which may actually be the policy-relevant parameter.
+
+**Important note on software implementation** — there are three distinct scenarios with different packages:
+
+| Scenario | Package | Notes |
+|---|---|---|
+| Continuous Dᵢₜ, stayers exist | `did_multiplegt_stat` | Requires that some units' treatment genuinely doesn't change between periods |
+| All units go from D=0 to D>0, no untreated control | `did_had` (Stata: `ssc install did_had`) | Heterogeneous adoption design; uses quasi-stayers as controls |
+| Fully always-on continuous Dᵢₜ, no stayers | **No dedicated package yet** | Theory exists in de Chaisemartin et al. (2024) AEA P&P; replication code available but no canned estimator |
+
+For ambient PM₂.₅, the relevant case is the third row. `did_multiplegt_stat` explicitly requires stayers — its entire estimation logic (regression adjustment or propensity-score reweighting of stayers' outcome changes) depends on stayers being present. The quasi-stayers/no-stayers estimator for always-on continuous treatments exists in theory and in a replication package, but has not yet been rolled into a turnkey command.
 
 ### Option 2: Instrumentation (Most Credible)
 
@@ -254,7 +264,8 @@ The most credible work on PM₂.₅ health effects will continue to rely on **in
 
 - Callaway, B., Goodman-Bacon, A., & Sant'Anna, P.H.C. (2025). "Difference-in-Differences with a Continuous Treatment." arXiv 2107.02637v8. R package: `contdid` (CRAN).
 - Callaway, B., Goodman-Bacon, A., & Sant'Anna, P.H.C. (2024). "Event Studies with a Continuous Treatment." *AEA Papers and Proceedings* 114: 601–05.
-- De Chaisemartin, C., D'Haultfoeuille, X., Pasquier, F., Sow, D., & Vazquez-Bare, G. (2025). "Difference-in-Differences for Continuous Treatments and Instruments with Stayers." arXiv 2201.06898v8. Stata/R package: `did_multiplegt_stat`.
+- De Chaisemartin, C., D'Haultfoeuille, X., Pasquier, F., Sow, D., & Vazquez-Bare, G. (2025). "Difference-in-Differences for Continuous Treatments and Instruments with Stayers." arXiv 2201.06898v8. Stata/R package: `did_multiplegt_stat` — **requires stayers to be present**.
+- De Chaisemartin, C., Ciccia, D., D'Haultfoeuille, X., & Knau, F. (2024). Heterogeneous adoption designs without stayers. Stata package: `did_had` (`ssc install did_had`) — for the case where all units adopt a positive dose at the same time, with no untreated control group.
 - De Chaisemartin, C., D'Haultfoeuille, X., & Vazquez-Bare, G. (2024). "Difference-in-Difference Estimators with Continuous Treatments and No Stayers." *AEA Papers and Proceedings* 114: 610–13.
 - Sun, L. & Shapiro, J.M. (2022). "A Linear Panel Model with Heterogeneous Coefficients and Variation in Exposure." *Journal of Economic Perspectives* 36(4): 193–204.
 - Chen, X., Christensen, T., & Kankanala, S. (2023). Nonparametric IV sieve estimation methods used for the dose-response estimator in Callaway et al.
