@@ -1,0 +1,440 @@
+---
+title: "TWFE with a Continuous Treatment: Simulation Evidence"
+author: Sam Harper
+date: today
+format:
+  html:
+    theme: materia
+    code-fold: true
+    toc: true
+---
+
+# Overview
+
+The 'DiD revolution' of 2018–2023 established that two-way fixed effects (TWFE) regressions with **binary** staggered treatments can estimate non-convex — potentially sign-reversed — weighted averages of group-time treatment effects. Less appreciated is that similar, and in some ways worse, problems arise with **continuous** treatments, even in the simplest two-period setting with no staggering at all.
+
+This document uses simulated data to show precisely how TWFE can go wrong when treatment is a continuous dose like ambient PM$_{2.5}$. Three scenarios build from a mundane estimand mismatch to a genuine sign reversal — all with **parallel trends holding exactly by construction**.
+
+The takeaway is not that TWFE is broken in some exotic edge case. It is that TWFE with a continuous treatment is answering a question that most researchers do not intend to ask.
+
+# The TWFE Estimator with Continuous Exposure
+
+## The Differential Exposure Design
+
+The **differential exposure design** places a policy event at time $t = 1$. Units differ in their fixed baseline exposure $D_i > 0$. Before the event all units are untreated; after it, unit $i$ is exposed at dose $D_i$. The standard TWFE regression is:
+
+$$Y_{it} = \alpha_i + \lambda_t + \beta^{TWFE}(D_i \cdot \text{Post}_t) + \varepsilon_{it}$$
+
+where $\alpha_i$ are unit fixed effects, $\lambda_t$ are time fixed effects, and $\text{Post}_t \in \{0, 1\}$.
+
+The object of interest for most policy applications is the **average treatment effect on the treated**, integrated over the dose distribution:
+
+$$\text{ATT}_\circ = \mathbb{E}[\tau(D_i)] = \mathbb{E}[Y_i(D_i) - Y_i(0)]$$
+
+where $\tau(d) = Y_i(d) - Y_i(0)$ is the *level* effect of dose $d$ relative to no treatment.
+
+## What TWFE Actually Estimates
+
+In the two-period case, after removing unit and time fixed effects (the within transformation), the regressor $D_i \cdot \text{Post}_t$ becomes $(D_i - \bar{D})(\text{Post}_t - \frac{1}{2})$. The TWFE estimator reduces to the OLS slope from regressing $\Delta Y_i = Y_{i1} - Y_{i0}$ on $D_i$:
+
+$$\hat{\beta}^{TWFE} = \frac{\text{Cov}(D_i,\, \Delta Y_i)}{\text{Var}(D_i)} = \frac{\sum_i (D_i - \bar{D})\,\Delta Y_i}{\sum_i (D_i - \bar{D})^2}$$
+
+The implicit TWFE weight on unit $i$ is $w_i \propto (D_i - \bar{D})$. Three consequences follow immediately:
+
+1. **Negative weights**: units with $D_i < \bar{D}$ receive negative weight — their outcome changes are *subtracted* from the estimate.
+2. **Zero sum**: the weights sum to zero ($\sum_i w_i = \sum_i(D_i - \bar{D}) = 0$), so $\hat\beta^{TWFE}$ is not a positively-weighted average of unit-level effects.
+3. **Implicit comparison group**: TWFE treats above-average-dose units as "treated" and below-average-dose units as the comparison group, even when every unit has $D_i > 0$.
+
+Under parallel trends, $\mathbb{E}[\Delta Y_i | D_i = d] = \lambda + \tau(d)$, so the TWFE estimator converges to:
+
+$$\hat{\beta}^{TWFE} \xrightarrow{p} \frac{\text{Cov}(D_i,\; \tau(D_i))}{\text{Var}(D_i)}$$
+
+This is the slope of the dose-response function $\tau(d)$ fitted by OLS — a variance-weighted average causal response. It equals $\text{ATT}_\circ$ only when $\tau(d)$ is linear in $d$ *and* the researcher is asking about a marginal effect per unit of $D$ rather than the average total effect. For nonlinear dose-response functions or questions about average level effects, TWFE gives the wrong answer — and can produce the wrong sign.
+
+# Simulated Data
+
+All three simulations share the same data-generating process (DGP):
+
+-   $N = 2{,}000$ counties, two periods ($t = 0$ pre, $t = 1$ post)
+-   County-level dose $D_i$ drawn from a distribution over positive reals (no $D = 0$ units, as in ambient PM$_{2.5}$ data)
+-   Unit fixed effect $\alpha_i \sim \mathcal{N}(50, 10^2)$
+-   Pre-period: $Y_{i0} = \alpha_i + \varepsilon_{i0}$, $\varepsilon \sim \mathcal{N}(0, 4)$
+-   Post-period: $Y_{i1} = \alpha_i + 1 + \tau(D_i) + \varepsilon_{i1}$ (common time trend = 1)
+-   **Parallel trends holds exactly**: the time shift $\lambda_1 - \lambda_0 = 1$ is identical for all counties
+
+The true dose-response $\tau(d)$ is known. We compare what TWFE estimates to the ground truth.
+
+```{r setup, message=FALSE, warning=FALSE}
+#| code-fold: true
+
+library(tidyverse)
+library(fixest)
+library(patchwork)
+library(kableExtra)
+
+set.seed(42)
+N <- 2000
+
+# ---- DGP helper ----
+# Builds a two-period panel under the differential exposure design.
+# Parallel trends holds by construction (common time_fe for all units).
+make_panel <- function(D, att_fn, time_fe = 1, sigma = 2) {
+  n     <- length(D)
+  tau   <- att_fn(D)
+  alpha <- rnorm(n, mean = 50, sd = 10)
+  # compute y outside tibble() to prevent tau column shadowing the local variable
+  y_pre  <- alpha                 + rnorm(n, 0, sigma)
+  y_post <- alpha + time_fe + tau + rnorm(n, 0, sigma)
+  tibble(
+    unit   = rep(seq_len(n), 2),
+    period = rep(0:1, each = n),
+    D      = rep(D, 2),
+    tau    = rep(tau, 2),
+    y      = c(y_pre, y_post)
+  )
+}
+
+# TWFE regression: Y ~ I(D * period) | unit + period
+# In two periods this recovers Cov(D, DeltaY) / Var(D)
+twfe_coef <- function(panel) {
+  fit <- feols(y ~ I(D * period) | unit + period,
+               data = panel, warn = FALSE)
+  unname(coef(fit)[1])
+}
+
+# First differences within each unit
+get_deltas <- function(panel) {
+  panel %>%
+    select(unit, period, D, y) %>%
+    pivot_wider(names_from = period, values_from = y, names_prefix = "y") %>%
+    mutate(delta_y = y1 - y0)
+}
+
+theme_set(theme_classic(base_size = 11) +
+  theme(plot.background = element_blank()))
+
+d_seq <- seq(1, 25, length.out = 200)
+```
+
+# Scenario 1: Linear Dose-Response — Different Estimands
+
+## DGP
+
+$$D_i \sim \text{Uniform}(5,\, 20), \qquad \tau(d) = 0.5\,d$$
+
+Each additional $\mu\text{g/m}^3$ of PM$_{2.5}$ increases the health outcome by 0.5 units. The true average ATT is:
+
+$$\text{ATT}_\circ = \mathbb{E}[\tau(D_i)] = 0.5 \cdot \mathbb{E}[D_i] = 0.5 \times 12.5 = 6.25$$
+
+For a *linear* dose-response, the TWFE estimator is:
+
+$$\hat\beta^{TWFE} \xrightarrow{p} \frac{\text{Cov}(D_i,\; 0.5\,D_i)}{\text{Var}(D_i)} = \frac{0.5\;\text{Var}(D_i)}{\text{Var}(D_i)} = 0.5$$
+
+## Results
+
+```{r scenario1, message=FALSE, warning=FALSE}
+#| fig-width: 9
+#| fig-height: 4
+
+D1   <- runif(N, 5, 20)
+att1 <- function(d) 0.5 * d
+
+p1       <- make_panel(D1, att1)
+beta1    <- twfe_coef(p1)
+att1_avg <- mean(att1(D1))
+d1       <- get_deltas(p1)
+
+fig1_dr <- tibble(d = d_seq, att = att1(d_seq)) %>%
+  ggplot(aes(x = d, y = att)) +
+  geom_line(color = "#E41A1C", linewidth = 1.2) +
+  geom_hline(yintercept = att1_avg, linetype = "dotted", color = "#E41A1C",
+             linewidth = 0.8) +
+  annotate("text", x = 22, y = att1_avg + 0.5,
+           label = sprintf("ATT° = %.2f", att1_avg),
+           color = "#E41A1C", size = 3.5) +
+  coord_cartesian(xlim = c(0, 25)) +
+  labs(x = "Dose D (µg/m³)", y = "τ(d)",
+       title = "True dose-response: τ(d) = 0.5d")
+
+fig1_sc <- d1 %>%
+  ggplot(aes(x = D, y = delta_y)) +
+  geom_point(alpha = 0.2, size = 0.6, color = "grey60") +
+  geom_smooth(method = "lm", color = "#E41A1C", se = FALSE, linewidth = 1.1) +
+  geom_hline(yintercept = att1_avg, linetype = "dotted", color = "steelblue",
+             linewidth = 0.8) +
+  annotate("text", x = 20.5, y = att1_avg + 0.7,
+           label = sprintf("True ATT° = %.2f", att1_avg),
+           color = "steelblue", size = 3.2, hjust = 1) +
+  annotate("text", x = 6, y = max(d1$delta_y) - 2,
+           label = sprintf("TWFE slope = %.2f", beta1),
+           color = "#E41A1C", size = 3.2, hjust = 0) +
+  labs(x = "Dose D (µg/m³)", y = "ΔY (post − pre)",
+       title = "TWFE regression of ΔY on D")
+
+fig1_dr | fig1_sc
+```
+
+The TWFE slope (`r round(beta1, 2)`) is approximately 0.5 — consistent with the true dose-response slope. But this is not a good answer. The true average ATT is **`r round(att1_avg, 2)`**, which is $\mathbb{E}[D_i] \approx 12.5$ times larger.
+
+The estimand mismatch here is not a bias in the traditional sense — TWFE is consistently estimating what it can estimate. The problem is that it estimates a *marginal causal response* (how much does one extra µg/m³ change the outcome?) when most policy questions demand an *average level effect* (how much total harm does PM$_{2.5}$ cause in this population?). These are genuinely different quantities and different policy questions, even when the dose-response is linear.
+
+A researcher who obtains a TWFE estimate of 0.5 and interprets it as the average ATT would understate the total harm by a factor of `r round(att1_avg / beta1, 0)`.
+
+# Scenario 2: Concave Dose-Response — Wrong Magnitude
+
+## DGP
+
+$$D_i \sim \text{Uniform}(5,\, 20), \qquad \tau(d) = 6\!\left(\sqrt{\frac{d}{5}} - 1\right)$$
+
+This dose-response is zero at $d = 5$ µg/m³, positive and *concave* thereafter — diminishing marginal harm with increasing exposure. Concave dose-response functions are common in environmental health: initial exposures may cause disproportionate harm, with returns diminishing at higher concentrations.
+
+The average causal response (ACRT) at dose $d$ is the derivative:
+
+$$\text{ACRT}(d) = \tau'(d) = \frac{6}{10}\,\left(\frac{d}{5}\right)^{-1/2} = \frac{3}{\sqrt{5d}}$$
+
+which is itself a decreasing function of $d$.
+
+## Results
+
+```{r scenario2, message=FALSE, warning=FALSE}
+#| fig-width: 9
+#| fig-height: 4
+
+D2   <- runif(N, 5, 20)
+att2 <- function(d) 6 * (sqrt(d / 5) - 1)
+
+p2       <- make_panel(D2, att2)
+beta2    <- twfe_coef(p2)
+att2_avg <- mean(att2(D2))
+d2       <- get_deltas(p2)
+
+acrt2_med <- 3 / sqrt(5 * median(D2))  # tau'(d) at median
+
+fig2_dr <- tibble(d = d_seq, att = att2(d_seq)) %>%
+  filter(d >= 5) %>%
+  ggplot(aes(x = d, y = att)) +
+  geom_line(color = "#377EB8", linewidth = 1.2) +
+  geom_hline(yintercept = att2_avg, linetype = "dotted", color = "#377EB8",
+             linewidth = 0.8) +
+  annotate("text", x = 22, y = att2_avg + 0.2,
+           label = sprintf("ATT° = %.2f", att2_avg),
+           color = "#377EB8", size = 3.5) +
+  coord_cartesian(xlim = c(0, 25), ylim = c(-0.5, 8)) +
+  labs(x = "Dose D (µg/m³)", y = "τ(d)",
+       title = "True dose-response: concave")
+
+fig2_sc <- d2 %>%
+  ggplot(aes(x = D, y = delta_y)) +
+  geom_point(alpha = 0.2, size = 0.6, color = "grey60") +
+  geom_smooth(method = "lm", color = "#377EB8", se = FALSE, linewidth = 1.1) +
+  geom_hline(yintercept = att2_avg, linetype = "dotted", color = "steelblue",
+             linewidth = 0.8) +
+  annotate("text", x = 20.5, y = att2_avg + 0.25,
+           label = sprintf("True ATT° = %.2f", att2_avg),
+           color = "steelblue", size = 3.2, hjust = 1) +
+  annotate("text", x = 6, y = max(d2$delta_y) - 2,
+           label = sprintf("TWFE slope = %.2f", beta2),
+           color = "#377EB8", size = 3.2, hjust = 0) +
+  labs(x = "Dose D (µg/m³)", y = "ΔY (post − pre)",
+       title = "TWFE regression of ΔY on D")
+
+fig2_dr | fig2_sc
+```
+
+The TWFE estimate (`r round(beta2, 2)`) is close to the true average causal response at the median dose ($d = `r round(median(D2), 1)`$ µg/m³), which is `r round(acrt2_med, 3)`. That might look like an acceptable result — but the true average ATT is **`r round(att2_avg, 2)`**, roughly `r round(att2_avg / beta2, 0)` times larger.
+
+The reason TWFE underestimates is systematic. The TWFE variance weight $w_i \propto (D_i - \bar{D})$ is positive for high-dose units and negative for low-dose units. Because the dose-response is *concave*, the function is steepest at low doses (where units receive negative or small TWFE weight) and flattest at high doses (where units receive the largest positive TWFE weight). TWFE overweights the flat end of the curve and underweights the steep end, pulling the estimate down toward the flat region.
+
+The practical upshot: if a researcher uses TWFE on data generated by a concave dose-response (as is typical in environmental health), the magnitude of the estimated effect will be too small regardless of sample size. This is not a finite-sample problem — it is an asymptotic bias from variance weighting.
+
+# Scenario 3: Wrong Sign
+
+This is the most consequential failure mode. The dose-response is *positive everywhere* — PM$_{2.5}$ causes harm at every exposure level — but TWFE returns a negative coefficient.
+
+## DGP
+
+$$D_i = \begin{cases} \mathcal{N}(5,\;1^2) & 50\%\text{ of counties (rural)} \\ \mathcal{N}(17,\;1^2) & 50\%\text{ of counties (industrial)} \end{cases}, \qquad \tau(d) = 20\,e^{-d/4}$$
+
+The dose-response is steeply declining: rural counties near $d = 5$ have $\tau(5) \approx 5.7$, while industrial counties near $d = 17$ have $\tau(17) \approx 0.3$. The population average ATT $\approx 3.1$ — positive at every dose.
+
+The bimodal dose distribution places the mean $\bar{D} \approx 11$ squarely *between* the two modes. The TWFE weight $w_i \propto (D_i - 11)$ is therefore strongly negative for rural counties (which have the largest effects) and strongly positive for industrial counties (which have the smallest effects). Positively-weighting small effects and negatively-weighting large effects produces a negative sum — even though no individual unit has a negative effect.
+
+## Results
+
+```{r scenario3, message=FALSE, warning=FALSE}
+#| fig-width: 10
+#| fig-height: 8
+
+D3   <- c(rnorm(N / 2, mean = 5, sd = 1), rnorm(N / 2, mean = 17, sd = 1))
+att3 <- function(d) 20 * exp(-d / 4)
+
+p3       <- make_panel(D3, att3)
+beta3    <- twfe_coef(p3)
+att3_avg <- mean(att3(D3))
+d3       <- get_deltas(p3)
+D3_bar   <- mean(D3)
+
+pA <- tibble(D = D3) %>%
+  ggplot(aes(x = D)) +
+  geom_histogram(bins = 60, fill = "steelblue", color = "white",
+                 linewidth = 0.2) +
+  geom_vline(xintercept = D3_bar, linetype = "dashed", color = "red",
+             linewidth = 0.8) +
+  annotate("text", x = D3_bar + 0.6, y = 75,
+           label = sprintf("D̄ = %.1f", D3_bar),
+           color = "red", hjust = 0, size = 3.5) +
+  labs(x = "PM₂.₅ (µg/m³)", y = "Count",
+       title = "A. Bimodal exposure distribution",
+       subtitle = "50% rural (D ≈ 5), 50% industrial (D ≈ 17)")
+
+pB <- tibble(d = d_seq, att = att3(d_seq)) %>%
+  ggplot(aes(x = d, y = att)) +
+  geom_line(color = "#377EB8", linewidth = 1.2) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "grey50") +
+  geom_hline(yintercept = att3_avg, linetype = "dotted", color = "#377EB8",
+             linewidth = 0.8) +
+  annotate("text", x = 20, y = att3_avg + 0.9,
+           label = sprintf("ATT° = %.2f", att3_avg),
+           color = "#377EB8", size = 3.5) +
+  coord_cartesian(xlim = c(0, 25)) +
+  labs(x = "PM₂.₅ dose (µg/m³)", y = "τ(d)",
+       title = "B. True dose-response",
+       subtitle = "Positive everywhere — pollution always harmful")
+
+pC <- d3 %>%
+  mutate(weight = D - D3_bar,
+         sign   = if_else(weight < 0,
+                          "Negative (D < D̄)", "Positive (D > D̄)")) %>%
+  ggplot(aes(x = D, y = weight, color = sign)) +
+  geom_point(alpha = 0.3, size = 0.7) +
+  geom_hline(yintercept = 0, linewidth = 0.5) +
+  geom_vline(xintercept = D3_bar, linetype = "dashed", color = "grey40") +
+  scale_color_manual(
+    values = c("Negative (D < D̄)" = "#E41A1C",
+               "Positive (D > D̄)" = "#377EB8"),
+    name = "TWFE weight"
+  ) +
+  labs(x = "PM₂.₅ (µg/m³)", y = "D_i − D̄",
+       title = "C. TWFE weights by county",
+       subtitle = "Rural counties (large τ) receive negative weight") +
+  theme(legend.position = "bottom", legend.text = element_text(size = 9))
+
+pD <- d3 %>%
+  ggplot(aes(x = D, y = delta_y)) +
+  geom_point(alpha = 0.2, size = 0.6, color = "grey60") +
+  geom_smooth(method = "lm", color = "#E41A1C", se = FALSE, linewidth = 1.1) +
+  geom_hline(yintercept = att3_avg, linetype = "dotted", color = "#377EB8",
+             linewidth = 0.8) +
+  annotate("text", x = 20.5, y = att3_avg + 1,
+           label = sprintf("True ATT° = %.2f", att3_avg),
+           color = "#377EB8", size = 3.2, hjust = 1) +
+  annotate("text", x = 3, y = min(d3$delta_y) + 2,
+           label = sprintf("TWFE slope = %.2f", beta3),
+           color = "#E41A1C", size = 3.2, hjust = 0) +
+  labs(x = "PM₂.₅ (µg/m³)", y = "ΔY (post − pre)",
+       title = "D. TWFE regression of ΔY on D",
+       subtitle = "Negative slope despite positive effects everywhere")
+
+(pA | pB) / (pC | pD) +
+  plot_annotation(
+    title = "Scenario 3: TWFE Recovers the Wrong Sign",
+    subtitle = sprintf(
+      "True ATT° = +%.2f (PM₂.₅ is harmful everywhere);   TWFE = %.2f (says it's beneficial)",
+      att3_avg, beta3
+    )
+  )
+```
+
+The TWFE estimate is **`r round(beta3, 2)`** — negative — despite every county having a positive treatment effect. A researcher relying on this result would conclude that PM$_{2.5}$ *reduces* health harm. The true average ATT is **+`r round(att3_avg, 2)`**.
+
+This requires neither a parallel trends violation nor measurement error nor model misspecification. The DGP satisfies parallel trends exactly. The only requirements are:
+
+1.  A dose-response that *decreases* with dose (large effects at low exposure, small at high exposure), and
+2.  A dose distribution with mass concentrated at the extremes so that $\bar{D}$ lies between them.
+
+Both are empirically plausible for ambient PM$_{2.5}$. Rural areas have lower concentrations; industrial and urban areas have higher concentrations. There are genuine scientific reasons — healthy survivor selection, compositional differences in PM$_{2.5}$ chemistry, adaptive responses — to expect attenuated health signals in chronically high-exposure populations. Whether the actual dose-response is declining over U.S. PM$_{2.5}$ ranges is an empirical question. This simulation shows that if it is, TWFE produces a qualitatively wrong answer.
+
+## The Weight Anatomy
+
+```{r weight_anatomy}
+#| fig-width: 7
+#| fig-height: 5
+
+weight_df <- tibble(
+  D      = D3,
+  att    = att3(D3),
+  weight = D3 - D3_bar,
+  sign   = if_else(D3 < D3_bar, "Negative weight", "Positive weight")
+)
+
+weight_df %>%
+  ggplot(aes(x = weight, y = att, color = sign)) +
+  geom_point(alpha = 0.3, size = 0.8) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  geom_vline(xintercept = 0, linetype = "dashed") +
+  scale_color_manual(
+    values = c("Negative weight" = "#E41A1C",
+               "Positive weight" = "#377EB8"),
+    name = ""
+  ) +
+  annotate("text", x = -10, y = 12,
+           label = "Large τ,\nnegative weight\n(rural areas)",
+           color = "#E41A1C", size = 3.5) +
+  annotate("text", x = 5, y = 0.4,
+           label = "Small τ,\npositive weight\n(industrial areas)",
+           color = "#377EB8", size = 3.5) +
+  labs(
+    x = "TWFE weight (D_i − D̄)",
+    y = "True τ(D_i)",
+    title = "TWFE weight vs. unit's true treatment effect",
+    subtitle = sprintf(
+      "Correlation = %.3f — units with the largest effects are negatively weighted",
+      cor(weight_df$weight, weight_df$att)
+    )
+  ) +
+  theme(legend.position = "none")
+```
+
+The correlation between a county's TWFE weight and its true treatment effect is **`r round(cor(weight_df$weight, weight_df$att), 3)`**. The estimator is nearly perfectly designed to discount large effects and amplify small ones. This is not an unlucky simulation draw — it follows directly from variance weighting combined with a dose-response that is decreasing in $d$.
+
+# Summary
+
+```{r summary_table}
+tibble(
+  Scenario        = c("1: Linear τ(d) = 0.5d",
+                      "2: Concave τ(d) = 6(√(d/5)−1)",
+                      "3: Declining τ(d) = 20exp(−d/4)"),
+  `D distribution` = c("Uniform(5, 20)",
+                        "Uniform(5, 20)",
+                        "Bimodal N(5,1) / N(17,1)"),
+  `TWFE`          = c(round(beta1, 2), round(beta2, 2), round(beta3, 2)),
+  `True ATT°`     = c(round(att1_avg, 2), round(att2_avg, 2), round(att3_avg, 2)),
+  `Failure mode`  = c("Different estimand (slope ≠ level effect)",
+                      "Wrong magnitude (variance-weighted slope underestimates concave ATT)",
+                      "Wrong sign")
+) %>%
+  kbl(align = "llrrl",
+      col.names = c("Scenario", "D distribution", "TWFE", "True ATT°", "Failure mode")) %>%
+  kable_styling(bootstrap_options = c("striped", "hover"), full_width = FALSE) %>%
+  row_spec(3, bold = TRUE, color = "white", background = "#C0392B")
+```
+
+## What TWFE Is (and Isn't) Doing
+
+Across all three scenarios, parallel trends holds by construction. TWFE is not failing because of pre-trend violations or omitted variable bias. It is failing because of *what it estimates*. In the two-period continuous-treatment case:
+
+$$\hat\beta^{TWFE} \xrightarrow{p} \underbrace{\frac{\text{Cov}(D_i,\; \tau(D_i))}{\text{Var}(D_i)}}_{\text{what TWFE estimates}} \quad \neq \quad \underbrace{\mathbb{E}[\tau(D_i)]}_{\text{average ATT}}$$
+
+The numerator $\text{Cov}(D_i, \tau(D_i))$ measures whether high-dose units have larger treatment effects than low-dose units — a fact about the *slope* of the dose-response, not about its level. When the dose-response is decreasing in dose (Scenario 3), this covariance is negative and TWFE returns a negative number even though every unit's treatment effect is positive.
+
+Note also that these pathologies arise with just **two time periods** — unlike the staggered binary treatment problems, which require multiple periods and staggered adoption. The problems here are fundamentally about the continuous treatment distribution and dose-response shape, not about timing.
+
+## Implications
+
+Three broader points:
+
+**First**, TWFE with a continuous treatment is implicitly running a binary DiD: above-average-dose units are "treated" and below-average-dose units are "control." Whether this is the right comparison depends entirely on the dose-response shape and the research question. In most cases it is not.
+
+**Second**, the problems are not detectable from pre-trend tests. Parallel trends is satisfied in all three simulations by construction. Pre-trend tests would pass in all cases. The bias is entirely post-treatment, arising from how TWFE weights the post-period outcome changes — and pre-trend tests say nothing about this.
+
+**Third**, for ambient PM$_{2.5}$ (where there is no policy event, no fixed $D_i \cdot \text{Post}_t$ to construct, and no $D = 0$ comparison group), the problems are even deeper. The differential exposure design that frames these scenarios does not apply. The quasi-stayers approach of de Chaisemartin et al. (2024) is the most credible DiD-type solution for always-on continuous treatments, but it requires counties with near-zero year-to-year PM$_{2.5}$ changes and is not yet available in a turnkey package. For most ambient PM$_{2.5}$ health effect research, instrumental variable methods — wind direction, wildfire smoke plumes, regulatory nonattainment thresholds — remain the most defensible identification strategy.
