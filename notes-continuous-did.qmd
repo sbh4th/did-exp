@@ -110,7 +110,21 @@ can be decomposed in four different ways depending on the "building block" param
 
 These TWFE pathologies arise even with **only two time periods** — unlike binary staggered case issues, which require multiple periods. The problems are fundamentally about continuous treatment heterogeneity, not staggering.
 
-### 3.4 Proposed Estimators
+### 3.4 Simulation Evidence on the Three Failure Modes
+
+Three simulated scenarios — all with parallel trends holding exactly by construction — illustrate how TWFE goes wrong in the differential exposure design ($N = 2{,}000$ counties, two periods, dose $D_i > 0$):
+
+| Scenario | Dose distribution | Dose-response τ(d) | TWFE | True ATT° | Problem |
+|---|---|---|:---:|:---:|---|
+| 1. Linear | Uniform(5, 20) | 0.5d | ≈ 0.48 | ≈ 6.25 | Slope ≠ level effect (~13× understatement) |
+| 2. Concave | Uniform(5, 20) | 6(√(d/5) − 1) | ≈ 0.39 | ≈ 3.20 | Variance-weighting underestimates concave ATT |
+| 3. Declining + bimodal | 50% N(5,1), 50% N(17,1) | 20 exp(−d/4) | ≈ **−0.48** | ≈ **+3.12** | **Wrong sign** |
+
+The third scenario is especially relevant for PM₂.₅: it requires only (a) a dose-response decreasing with concentration — large effects at low exposures, small at high — and (b) a bimodal dose distribution (rural vs. urban/industrial counties). Both are empirically plausible for U.S. PM₂.₅. Because TWFE weights units proportional to $(D_i - \bar D)$, it gives negative weight to rural counties (high effects, low dose) and positive weight to industrial counties (low effects, high dose), mechanically reversing the sign.
+
+The intuition: TWFE is not testing whether pollution is harmful — it is testing whether *high-dose* counties experience larger outcome changes than *low-dose* counties. In the bimodal scenario, they do not, because high-dose counties have smaller effects. TWFE sees this pattern and concludes (wrongly) that pollution is beneficial.
+
+### 3.5 Proposed Estimators
 
 Building on Chen, Christensen & Kankanala (2023):
 
@@ -120,7 +134,7 @@ Building on Chen, Christensen & Kankanala (2023):
   - ATTₒ: run a *binary* DiD with treatment dummy = 1 for any D > 0. Correctly uses dose density as weights.
   - ACRTₒ: estimate average derivative via "flexible" linear regression.
 
-### 3.5 What "Post" Means — And Why It Doesn't Apply to PM₂.₅
+### 3.6 What "Post" Means — And Why It Doesn't Apply to PM₂.₅
 
 Equation 1.1 requires a specific design: **Dᵢ × Postₜ** — a cross-product of a *fixed* dose variable and a *binary time switch*. This presupposes:
 - **Dᵢ is time-invariant** (measured at baseline, pre-event)
@@ -167,6 +181,41 @@ estimated nonparametrically. For PM₂.₅ this is more defensible than true sta
 
 **The assumption is testable**: you can run a pre-trend test comparing period-zero-to-one outcome evolutions of units that will become quasi-stayers vs. switchers.
 
+### Operationalizing Quasi-Stayers for PM₂.₅
+
+**Threshold choice.** The cleanest approach is percentile-based: county-year (i, t) is a quasi-stayer if |ΔDᵢₜ| falls in the bottom q-th percentile of |ΔD| in year t. This self-scales across years regardless of units. For PM₂.₅, the bottom 20th percentile (q = 0.20) captures counties that changed annual mean concentration by roughly 0.3–0.5 µg/m³ year-to-year. A sensitivity analysis across q ∈ {0.10, …, 0.40} serves as a robustness check; stability across thresholds supports the identifying assumption.
+
+**The AOSS estimator.** For each consecutive period pair (t−1, t):
+
+1. **Classify** county-years: quasi-stayer if |ΔDᵢₜ| ≤ εₜ; switcher otherwise.
+2. **Counterfactual model**: fit ΔY ~ Dᵢ,ₜ₋₁ within quasi-stayers (conditioning on baseline dose implements parallel trends conditional on starting level).
+3. **Predict** each switcher's counterfactual ΔY^cf from the quasi-stayer model.
+4. **Aggregate** across switchers using AOSS weighting (Average Of Switchers' Slopes):
+
+> AOSS = Σ (ΔYᵢₜ − ΔY^cf_ᵢₜ) · ΔDᵢₜ / Σ (ΔDᵢₜ)²
+
+The weighting by ΔDᵢₜ² (no-intercept OLS of causal effect on ΔD) gives more influence to switchers with larger dose changes — those providing the strongest signal about the slope. Average across period pairs to obtain the final estimate.
+
+### Analytic Bias Comparison: TWFE vs. Quasi-Stayer
+
+For an always-on DGP with an unobserved confounder Cᵢₜ (direct effect δ on Y, also drives Dᵢₜ), the two estimators have parallel bias formulas:
+
+| Estimator | Plim | Confounded share |
+|---|---|---|
+| TWFE | τ + δ · Var̃(C) / [Var̃(C) + Var̃(u)] | R²_C (in *levels* after within-transformation) |
+| Quasi-stayer AOSS | τ + δ · Var(ΔC) / [Var(ΔC) + Var(Δu)] | R²_qs (in *first differences*) |
+
+where Var̃(·) denotes within-unit, within-time variance and Var(Δ·) denotes variance of year-to-year changes.
+
+**When quasi-stayer wins: persistent confounders.** If Cᵢₜ follows an AR(1) with persistence ρ:
+
+- Var̃(C) ∝ σ²_η / (1 − ρ²): large when ρ is large
+- Var(ΔC) = 2σ²_η / (1 + ρ): small when ρ is large
+
+With ρ = 0.9 and σ_η = 0.7, σ_u = 1.5: R²_C ≈ 0.26 but R²_qs ≈ 0.10 — a 60% reduction in confounded share. Simulation confirms: TWFE ≈ 0.01 (near-zero, huge bias) vs. quasi-stayer ≈ 0.31 (still biased, but much closer to the true τ = 0.5). The economic intuition: a persistent factor like economic conditions dominates *county-level PM₂.₅ levels* but contributes comparatively little to *year-to-year fluctuations* (since recessions unfold slowly); the quasi-stayer's first-difference design sidesteps much of this slow-moving confounding.
+
+**When quasi-stayer offers no advantage.** If Cᵢₜ is i.i.d. (ρ = 0), then Var̃(C) ≈ Var(ΔC)/2 and R²_C ≈ R²_qs — no bias reduction. Transient weather shocks that independently affect both PM₂.₅ and health (e.g., an unusual cold snap that spikes heating emissions and directly increases mortality) fit this pattern. In that case, neither TWFE nor quasi-stayer is protected.
+
 ### The No-Stayers Extension
 
 De Chaisemartin, D'Haultfoeuille & Vazquez-Bare (2024), "Difference-in-Difference Estimators with Continuous Treatments and No Stayers," AEA Papers and Proceedings 114: 610–13. Explicitly addresses the temperature/precipitation case where all units' treatments change.
@@ -194,6 +243,8 @@ The closest to a design-based answer without an instrument. Requires:
 - Their outcome trends are valid counterfactuals for counties with larger changes, *conditional on the same baseline dose*
 
 This is a conditional parallel trends assumption that is empirically testable. The causal interpretation is local to switchers (marginal effect of PM₂.₅ change), which may actually be the policy-relevant parameter.
+
+**Practical implementation** (see also Section 4 above): classify quasi-stayers using a percentile-based threshold on |ΔDᵢₜ|, fit a counterfactual trend model within quasi-stayers, and aggregate the causal effect across switchers using AOSS weighting (ΣceᵢₜΔDᵢₜ / Σ(ΔDᵢₜ)²). Simulation evidence (with an AR(1) economic confounder at ρ = 0.9) confirms the approach reduces TWFE confounding bias by roughly **60%** when the confounder is persistent — from near-zero (TWFE ≈ 0.01) to a meaningfully biased but directionally correct estimate (quasi-stayer ≈ 0.31) relative to a true τ = 0.5. The reduction stems from the first-difference design sidestepping most of the slow-moving confounding. Pre-period placebo tests (comparing quasi-stayer vs. switcher outcome trends in a period before any treatment change) provide a partial diagnostic.
 
 **Important note on software implementation** — there are three distinct scenarios with different packages:
 
@@ -236,7 +287,28 @@ For specific large pollution events (plant opening/closing, regulation change), 
 
 ---
 
-## 7. Summary Assessment
+## 7. Five Failure Modes: Simulation Evidence
+
+The following table collects results from a simulation study (`continuous-did-sim.qmd`) that spans all five major failure scenarios. The first three use the differential exposure design (fixed $D_i$, binary Post); the last two use an always-on panel with time-varying $D_{it}$.
+
+| # | Design | Setting | PT holds? | TWFE | Alt. est. | True | Failure mode |
+|---|---|---|:---:|:---:|:---:|:---:|---|
+| 1 | Diff. exposure | Linear τ(d) = 0.5d | ✓ | ≈ 0.48 | — | ≈ 6.25 | Slope ≠ level effect |
+| 2 | Diff. exposure | Concave τ(d) | ✓ | ≈ 0.39 | — | ≈ 3.20 | Variance-weighting underestimates |
+| 3 | Diff. exposure | Declining τ(d) + bimodal D | ✓ | ≈ −0.48 | — | ≈ +3.12 | **Wrong sign** |
+| 4 | Always-on | AR(1) econ. confounder (ρ=0.9) | ✗ | ≈ 0.01 | Oracle: 0.55 | 0.50 | Time-varying confounding cancels true effect |
+| 5 | Always-on | Same DGP as 4, quasi-stayer | Partial | ≈ 0.01 | QS: 0.31 | 0.50 | Bias reduced ~60% vs. TWFE; not eliminated |
+
+**Key takeaways:**
+
+- Scenarios 1–3 show failures that arise from *what TWFE estimates* (a variance-weighted slope) rather than assumption violations. Even with parallel trends exact, the estimand is wrong.
+- Scenario 4 shows the distinct always-on failure: within-unit PM₂.₅ variation is driven by the same economic factor that directly affects health; TWFE cannot separate these. Pre-trend tests are unavailable (there is no pre-treatment period in the conventional sense).
+- Scenario 5 shows that the quasi-stayer AOSS estimator reduces but does not eliminate the always-on bias. The improvement is largest when the confounder is persistent (slow-moving relative to year-to-year PM₂.₅ changes). The assumption is more transparent than TWFE's and partially testable via placebo pre-period regressions.
+- For all five scenarios, an instrumental variable that shifts PM₂.₅ exogenously — wind direction, wildfire smoke, regulatory nonattainment — would recover the true causal effect. DiD-type approaches are second-best.
+
+---
+
+## 8. Summary Assessment
 
 | Design | Identifying Assumption | PM₂.₅ Applicability |
 |---|---|---|
@@ -260,7 +332,7 @@ The most credible work on PM₂.₅ health effects will continue to rely on **in
 
 ---
 
-## 8. Key References
+## 9. Key References
 
 - Callaway, B., Goodman-Bacon, A., & Sant'Anna, P.H.C. (2025). "Difference-in-Differences with a Continuous Treatment." arXiv 2107.02637v8. R package: `contdid` (CRAN).
 - Callaway, B., Goodman-Bacon, A., & Sant'Anna, P.H.C. (2024). "Event Studies with a Continuous Treatment." *AEA Papers and Proceedings* 114: 601–05.
@@ -270,4 +342,5 @@ The most credible work on PM₂.₅ health effects will continue to rely on **in
 - Sun, L. & Shapiro, J.M. (2022). "A Linear Panel Model with Heterogeneous Coefficients and Variation in Exposure." *Journal of Economic Perspectives* 36(4): 193–204.
 - Chen, X., Christensen, T., & Kankanala, S. (2023). Nonparametric IV sieve estimation methods used for the dose-response estimator in Callaway et al.
 - Roth, J., Sant'Anna, P.H.C., Bilinski, A., & Poe, J. (2023). "What's Trending in Difference-in-Differences? A Synthesis of the Recent Econometrics Literature." *Journal of Econometrics* 235(2): 2218–2244.
+- Harper, S. (2025). "TWFE with a Continuous Treatment: Simulation Evidence." `continuous-did-sim.qmd`. Five simulation scenarios covering differential-exposure TWFE failures (Scenarios 1–3) and always-on confounding with a quasi-stayer comparison (Scenarios 4–5).
 
