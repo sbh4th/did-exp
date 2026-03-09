@@ -1,0 +1,1424 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.8.26">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="Sam Harper">
+<meta name="dcterms.date" content="2026-03-09">
+
+<title>TWFE with a Continuous Treatment: Simulation Evidence</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="continuous-did-sim_files/libs/clipboard/clipboard.min.js"></script>
+<script src="continuous-did-sim_files/libs/quarto-html/quarto.js" type="module"></script>
+<script src="continuous-did-sim_files/libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="continuous-did-sim_files/libs/quarto-html/axe/axe-check.js" type="module"></script>
+<script src="continuous-did-sim_files/libs/quarto-html/popper.min.js"></script>
+<script src="continuous-did-sim_files/libs/quarto-html/tippy.umd.min.js"></script>
+<script src="continuous-did-sim_files/libs/quarto-html/anchor.min.js"></script>
+<link href="continuous-did-sim_files/libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="continuous-did-sim_files/libs/quarto-html/quarto-syntax-highlighting-587c61ba64f3a5504c4d52d930310e48.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="continuous-did-sim_files/libs/bootstrap/bootstrap.min.js"></script>
+<link href="continuous-did-sim_files/libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="continuous-did-sim_files/libs/bootstrap/bootstrap-66db0097476468aff533d1f23d934a35.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<script src="continuous-did-sim_files/libs/kePrint-0.0.1/kePrint.js"></script>
+<link href="continuous-did-sim_files/libs/lightable-0.0.1/lightable.css" rel="stylesheet">
+
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+</head>
+
+<body class="quarto-light">
+
+<div id="quarto-content" class="page-columns page-rows-contents page-layout-article">
+<div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+  <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">Table of contents</h2>
+   
+  <ul>
+  <li><a href="#overview" id="toc-overview" class="nav-link active" data-scroll-target="#overview">Overview</a></li>
+  <li><a href="#the-twfe-estimator-with-continuous-exposure" id="toc-the-twfe-estimator-with-continuous-exposure" class="nav-link" data-scroll-target="#the-twfe-estimator-with-continuous-exposure">The TWFE Estimator with Continuous Exposure</a>
+  <ul class="collapse">
+  <li><a href="#the-differential-exposure-design" id="toc-the-differential-exposure-design" class="nav-link" data-scroll-target="#the-differential-exposure-design">The Differential Exposure Design</a></li>
+  <li><a href="#what-twfe-actually-estimates" id="toc-what-twfe-actually-estimates" class="nav-link" data-scroll-target="#what-twfe-actually-estimates">What TWFE Actually Estimates</a></li>
+  </ul></li>
+  <li><a href="#simulated-data" id="toc-simulated-data" class="nav-link" data-scroll-target="#simulated-data">Simulated Data</a></li>
+  <li><a href="#scenario-1-linear-dose-response-different-estimands" id="toc-scenario-1-linear-dose-response-different-estimands" class="nav-link" data-scroll-target="#scenario-1-linear-dose-response-different-estimands">Scenario 1: Linear Dose-Response — Different Estimands</a>
+  <ul class="collapse">
+  <li><a href="#dgp" id="toc-dgp" class="nav-link" data-scroll-target="#dgp">DGP</a></li>
+  <li><a href="#results" id="toc-results" class="nav-link" data-scroll-target="#results">Results</a></li>
+  </ul></li>
+  <li><a href="#scenario-2-concave-dose-response-wrong-magnitude" id="toc-scenario-2-concave-dose-response-wrong-magnitude" class="nav-link" data-scroll-target="#scenario-2-concave-dose-response-wrong-magnitude">Scenario 2: Concave Dose-Response — Wrong Magnitude</a>
+  <ul class="collapse">
+  <li><a href="#dgp-1" id="toc-dgp-1" class="nav-link" data-scroll-target="#dgp-1">DGP</a></li>
+  <li><a href="#results-1" id="toc-results-1" class="nav-link" data-scroll-target="#results-1">Results</a></li>
+  </ul></li>
+  <li><a href="#scenario-3-wrong-sign" id="toc-scenario-3-wrong-sign" class="nav-link" data-scroll-target="#scenario-3-wrong-sign">Scenario 3: Wrong Sign</a>
+  <ul class="collapse">
+  <li><a href="#dgp-2" id="toc-dgp-2" class="nav-link" data-scroll-target="#dgp-2">DGP</a></li>
+  <li><a href="#results-2" id="toc-results-2" class="nav-link" data-scroll-target="#results-2">Results</a></li>
+  <li><a href="#the-weight-anatomy" id="toc-the-weight-anatomy" class="nav-link" data-scroll-target="#the-weight-anatomy">The Weight Anatomy</a></li>
+  </ul></li>
+  <li><a href="#scenario-4-always-on-treatment-no-post-period" id="toc-scenario-4-always-on-treatment-no-post-period" class="nav-link" data-scroll-target="#scenario-4-always-on-treatment-no-post-period">Scenario 4: Always-On Treatment — No Post-Period</a>
+  <ul class="collapse">
+  <li><a href="#dgp-3" id="toc-dgp-3" class="nav-link" data-scroll-target="#dgp-3">DGP</a></li>
+  <li><a href="#results-3" id="toc-results-3" class="nav-link" data-scroll-target="#results-3">Results</a></li>
+  </ul></li>
+  <li><a href="#scenario-5-the-quasi-stayer-approach" id="toc-scenario-5-the-quasi-stayer-approach" class="nav-link" data-scroll-target="#scenario-5-the-quasi-stayer-approach">Scenario 5: The Quasi-Stayer Approach</a>
+  <ul class="collapse">
+  <li><a href="#operationalizing-quasi-stayers-for-pm_2.5" id="toc-operationalizing-quasi-stayers-for-pm_2.5" class="nav-link" data-scroll-target="#operationalizing-quasi-stayers-for-pm_2.5">Operationalizing “Quasi-Stayers” for PM<span class="math inline">\(_{2.5}\)</span></a></li>
+  <li><a href="#the-estimator" id="toc-the-estimator" class="nav-link" data-scroll-target="#the-estimator">The Estimator</a></li>
+  <li><a href="#why-quasi-stayers-are-less-biased-here" id="toc-why-quasi-stayers-are-less-biased-here" class="nav-link" data-scroll-target="#why-quasi-stayers-are-less-biased-here">Why Quasi-Stayers Are Less Biased Here</a></li>
+  <li><a href="#results-4" id="toc-results-4" class="nav-link" data-scroll-target="#results-4">Results</a></li>
+  <li><a href="#limits-of-the-quasi-stayer-approach" id="toc-limits-of-the-quasi-stayer-approach" class="nav-link" data-scroll-target="#limits-of-the-quasi-stayer-approach">Limits of the Quasi-Stayer Approach</a></li>
+  </ul></li>
+  <li><a href="#summary" id="toc-summary" class="nav-link" data-scroll-target="#summary">Summary</a>
+  <ul class="collapse">
+  <li><a href="#what-twfe-is-and-isnt-doing" id="toc-what-twfe-is-and-isnt-doing" class="nav-link" data-scroll-target="#what-twfe-is-and-isnt-doing">What TWFE Is (and Isn’t) Doing</a></li>
+  <li><a href="#implications" id="toc-implications" class="nav-link" data-scroll-target="#implications">Implications</a></li>
+  </ul></li>
+  </ul>
+</nav>
+</div>
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">TWFE with a Continuous Treatment: Simulation Evidence</h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    <div>
+    <div class="quarto-title-meta-heading">Author</div>
+    <div class="quarto-title-meta-contents">
+             <p>Sam Harper </p>
+          </div>
+  </div>
+    
+    <div>
+    <div class="quarto-title-meta-heading">Published</div>
+    <div class="quarto-title-meta-contents">
+      <p class="date">March 9, 2026</p>
+    </div>
+  </div>
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<section id="overview" class="level1">
+<h1>Overview</h1>
+<p>The ‘DiD revolution’ of 2018–2023 established that two-way fixed effects (TWFE) regressions with <strong>binary</strong> staggered treatments can estimate non-convex — potentially sign-reversed — weighted averages of group-time treatment effects. Less appreciated is that similar, and in some ways worse, problems arise with <strong>continuous</strong> treatments, even in the simplest two-period setting with no staggering at all.</p>
+<p>This document uses simulated data to show precisely how TWFE can go wrong when treatment is a continuous dose like ambient PM<span class="math inline">\(_{2.5}\)</span>. Three scenarios build from a mundane estimand mismatch to a genuine sign reversal — all with <strong>parallel trends holding exactly by construction</strong>.</p>
+<p>The takeaway is not that TWFE is broken in some exotic edge case. It is that TWFE with a continuous treatment is answering a question that most researchers do not intend to ask.</p>
+</section>
+<section id="the-twfe-estimator-with-continuous-exposure" class="level1">
+<h1>The TWFE Estimator with Continuous Exposure</h1>
+<section id="the-differential-exposure-design" class="level2">
+<h2 class="anchored" data-anchor-id="the-differential-exposure-design">The Differential Exposure Design</h2>
+<p>The <strong>differential exposure design</strong> places a policy event at time <span class="math inline">\(t = 1\)</span>. Units differ in their fixed baseline exposure <span class="math inline">\(D_i &gt; 0\)</span>. Before the event all units are untreated; after it, unit <span class="math inline">\(i\)</span> is exposed at dose <span class="math inline">\(D_i\)</span>. The standard TWFE regression is:</p>
+<p><span class="math display">\[Y_{it} = \alpha_i + \lambda_t + \beta^{TWFE}(D_i \cdot \text{Post}_t) + \varepsilon_{it}\]</span></p>
+<p>where <span class="math inline">\(\alpha_i\)</span> are unit fixed effects, <span class="math inline">\(\lambda_t\)</span> are time fixed effects, and <span class="math inline">\(\text{Post}_t \in \{0, 1\}\)</span>.</p>
+<p>The object of interest for most policy applications is the <strong>average treatment effect on the treated</strong>, integrated over the dose distribution:</p>
+<p><span class="math display">\[\text{ATT}_\circ = \mathbb{E}[\tau(D_i)] = \mathbb{E}[Y_i(D_i) - Y_i(0)]\]</span></p>
+<p>where <span class="math inline">\(\tau(d) = Y_i(d) - Y_i(0)\)</span> is the <em>level</em> effect of dose <span class="math inline">\(d\)</span> relative to no treatment.</p>
+</section>
+<section id="what-twfe-actually-estimates" class="level2">
+<h2 class="anchored" data-anchor-id="what-twfe-actually-estimates">What TWFE Actually Estimates</h2>
+<p>In the two-period case, after removing unit and time fixed effects (the within transformation), the regressor <span class="math inline">\(D_i \cdot \text{Post}_t\)</span> becomes <span class="math inline">\((D_i - \bar{D})(\text{Post}_t - \frac{1}{2})\)</span>. The TWFE estimator reduces to the OLS slope from regressing <span class="math inline">\(\Delta Y_i = Y_{i1} - Y_{i0}\)</span> on <span class="math inline">\(D_i\)</span>:</p>
+<p><span class="math display">\[\hat{\beta}^{TWFE} = \frac{\text{Cov}(D_i,\, \Delta Y_i)}{\text{Var}(D_i)} = \frac{\sum_i (D_i - \bar{D})\,\Delta Y_i}{\sum_i (D_i - \bar{D})^2}\]</span></p>
+<p>The implicit TWFE weight on unit <span class="math inline">\(i\)</span> is <span class="math inline">\(w_i \propto (D_i - \bar{D})\)</span>. Three consequences follow immediately:</p>
+<ol type="1">
+<li><strong>Negative weights</strong>: units with <span class="math inline">\(D_i &lt; \bar{D}\)</span> receive negative weight — their outcome changes are <em>subtracted</em> from the estimate.</li>
+<li><strong>Zero sum</strong>: the weights sum to zero (<span class="math inline">\(\sum_i w_i = \sum_i(D_i - \bar{D}) = 0\)</span>), so <span class="math inline">\(\hat\beta^{TWFE}\)</span> is not a positively-weighted average of unit-level effects.</li>
+<li><strong>Implicit comparison group</strong>: TWFE treats above-average-dose units as “treated” and below-average-dose units as the comparison group, even when every unit has <span class="math inline">\(D_i &gt; 0\)</span>.</li>
+</ol>
+<p>Under parallel trends, <span class="math inline">\(\mathbb{E}[\Delta Y_i | D_i = d] = \lambda + \tau(d)\)</span>, so the TWFE estimator converges to:</p>
+<p><span class="math display">\[\hat{\beta}^{TWFE} \xrightarrow{p} \frac{\text{Cov}(D_i,\; \tau(D_i))}{\text{Var}(D_i)}\]</span></p>
+<p>This is the slope of the dose-response function <span class="math inline">\(\tau(d)\)</span> fitted by OLS — a variance-weighted average causal response. It equals <span class="math inline">\(\text{ATT}_\circ\)</span> only when <span class="math inline">\(\tau(d)\)</span> is linear in <span class="math inline">\(d\)</span> <em>and</em> the researcher is asking about a marginal effect per unit of <span class="math inline">\(D\)</span> rather than the average total effect. For nonlinear dose-response functions or questions about average level effects, TWFE gives the wrong answer — and can produce the wrong sign.</p>
+</section>
+</section>
+<section id="simulated-data" class="level1">
+<h1>Simulated Data</h1>
+<p>All three simulations share the same data-generating process (DGP):</p>
+<ul>
+<li><span class="math inline">\(N = 2{,}000\)</span> counties, two periods (<span class="math inline">\(t = 0\)</span> pre, <span class="math inline">\(t = 1\)</span> post)</li>
+<li>County-level dose <span class="math inline">\(D_i\)</span> drawn from a distribution over positive reals (no <span class="math inline">\(D = 0\)</span> units, as in ambient PM<span class="math inline">\(_{2.5}\)</span> data)</li>
+<li>Unit fixed effect <span class="math inline">\(\alpha_i \sim \mathcal{N}(50, 10^2)\)</span></li>
+<li>Pre-period: <span class="math inline">\(Y_{i0} = \alpha_i + \varepsilon_{i0}\)</span>, <span class="math inline">\(\varepsilon \sim \mathcal{N}(0, 4)\)</span></li>
+<li>Post-period: <span class="math inline">\(Y_{i1} = \alpha_i + 1 + \tau(D_i) + \varepsilon_{i1}\)</span> (common time trend = 1)</li>
+<li><strong>Parallel trends holds exactly</strong>: the time shift <span class="math inline">\(\lambda_1 - \lambda_0 = 1\)</span> is identical for all counties</li>
+</ul>
+<p>The true dose-response <span class="math inline">\(\tau(d)\)</span> is known. We compare what TWFE estimates to the ground truth.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(tidyverse)</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(fixest)</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(patchwork)</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(kableExtra)</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">42</span>)</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>N <span class="ot">&lt;-</span> <span class="dv">2000</span></span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="co"># ---- DGP helper ----</span></span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a><span class="co"># Builds a two-period panel under the differential exposure design.</span></span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a><span class="co"># Parallel trends holds by construction (common time_fe for all units).</span></span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>make_panel <span class="ot">&lt;-</span> <span class="cf">function</span>(D, att_fn, <span class="at">time_fe =</span> <span class="dv">1</span>, <span class="at">sigma =</span> <span class="dv">2</span>) {</span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>  n     <span class="ot">&lt;-</span> <span class="fu">length</span>(D)</span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a>  tau   <span class="ot">&lt;-</span> <span class="fu">att_fn</span>(D)</span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a>  alpha <span class="ot">&lt;-</span> <span class="fu">rnorm</span>(n, <span class="at">mean =</span> <span class="dv">50</span>, <span class="at">sd =</span> <span class="dv">10</span>)</span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a>  <span class="co"># compute y outside tibble() to prevent tau column shadowing the local variable</span></span>
+<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a>  y_pre  <span class="ot">&lt;-</span> alpha                 <span class="sc">+</span> <span class="fu">rnorm</span>(n, <span class="dv">0</span>, sigma)</span>
+<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a>  y_post <span class="ot">&lt;-</span> alpha <span class="sc">+</span> time_fe <span class="sc">+</span> tau <span class="sc">+</span> <span class="fu">rnorm</span>(n, <span class="dv">0</span>, sigma)</span>
+<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a>  <span class="fu">tibble</span>(</span>
+<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a>    <span class="at">unit   =</span> <span class="fu">rep</span>(<span class="fu">seq_len</span>(n), <span class="dv">2</span>),</span>
+<span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a>    <span class="at">period =</span> <span class="fu">rep</span>(<span class="dv">0</span><span class="sc">:</span><span class="dv">1</span>, <span class="at">each =</span> n),</span>
+<span id="cb1-22"><a href="#cb1-22" aria-hidden="true" tabindex="-1"></a>    <span class="at">D      =</span> <span class="fu">rep</span>(D, <span class="dv">2</span>),</span>
+<span id="cb1-23"><a href="#cb1-23" aria-hidden="true" tabindex="-1"></a>    <span class="at">tau    =</span> <span class="fu">rep</span>(tau, <span class="dv">2</span>),</span>
+<span id="cb1-24"><a href="#cb1-24" aria-hidden="true" tabindex="-1"></a>    <span class="at">y      =</span> <span class="fu">c</span>(y_pre, y_post)</span>
+<span id="cb1-25"><a href="#cb1-25" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb1-26"><a href="#cb1-26" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb1-27"><a href="#cb1-27" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-28"><a href="#cb1-28" aria-hidden="true" tabindex="-1"></a><span class="co"># TWFE regression: Y ~ I(D * period) | unit + period</span></span>
+<span id="cb1-29"><a href="#cb1-29" aria-hidden="true" tabindex="-1"></a><span class="co"># In two periods this recovers Cov(D, DeltaY) / Var(D)</span></span>
+<span id="cb1-30"><a href="#cb1-30" aria-hidden="true" tabindex="-1"></a>twfe_coef <span class="ot">&lt;-</span> <span class="cf">function</span>(panel) {</span>
+<span id="cb1-31"><a href="#cb1-31" aria-hidden="true" tabindex="-1"></a>  fit <span class="ot">&lt;-</span> <span class="fu">feols</span>(y <span class="sc">~</span> <span class="fu">I</span>(D <span class="sc">*</span> period) <span class="sc">|</span> unit <span class="sc">+</span> period,</span>
+<span id="cb1-32"><a href="#cb1-32" aria-hidden="true" tabindex="-1"></a>               <span class="at">data =</span> panel, <span class="at">warn =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb1-33"><a href="#cb1-33" aria-hidden="true" tabindex="-1"></a>  <span class="fu">unname</span>(<span class="fu">coef</span>(fit)[<span class="dv">1</span>])</span>
+<span id="cb1-34"><a href="#cb1-34" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb1-35"><a href="#cb1-35" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-36"><a href="#cb1-36" aria-hidden="true" tabindex="-1"></a><span class="co"># First differences within each unit</span></span>
+<span id="cb1-37"><a href="#cb1-37" aria-hidden="true" tabindex="-1"></a>get_deltas <span class="ot">&lt;-</span> <span class="cf">function</span>(panel) {</span>
+<span id="cb1-38"><a href="#cb1-38" aria-hidden="true" tabindex="-1"></a>  panel <span class="sc">%&gt;%</span></span>
+<span id="cb1-39"><a href="#cb1-39" aria-hidden="true" tabindex="-1"></a>    <span class="fu">select</span>(unit, period, D, y) <span class="sc">%&gt;%</span></span>
+<span id="cb1-40"><a href="#cb1-40" aria-hidden="true" tabindex="-1"></a>    <span class="fu">pivot_wider</span>(<span class="at">names_from =</span> period, <span class="at">values_from =</span> y, <span class="at">names_prefix =</span> <span class="st">"y"</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb1-41"><a href="#cb1-41" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(<span class="at">delta_y =</span> y1 <span class="sc">-</span> y0)</span>
+<span id="cb1-42"><a href="#cb1-42" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb1-43"><a href="#cb1-43" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-44"><a href="#cb1-44" aria-hidden="true" tabindex="-1"></a><span class="fu">theme_set</span>(<span class="fu">theme_classic</span>(<span class="at">base_size =</span> <span class="dv">11</span>) <span class="sc">+</span></span>
+<span id="cb1-45"><a href="#cb1-45" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(<span class="at">plot.background =</span> <span class="fu">element_blank</span>()))</span>
+<span id="cb1-46"><a href="#cb1-46" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-47"><a href="#cb1-47" aria-hidden="true" tabindex="-1"></a>d_seq <span class="ot">&lt;-</span> <span class="fu">seq</span>(<span class="dv">1</span>, <span class="dv">25</span>, <span class="at">length.out =</span> <span class="dv">200</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+</section>
+<section id="scenario-1-linear-dose-response-different-estimands" class="level1">
+<h1>Scenario 1: Linear Dose-Response — Different Estimands</h1>
+<section id="dgp" class="level2">
+<h2 class="anchored" data-anchor-id="dgp">DGP</h2>
+<p><span class="math display">\[D_i \sim \text{Uniform}(5,\, 20), \qquad \tau(d) = 0.5\,d\]</span></p>
+<p>Each additional <span class="math inline">\(\mu\text{g/m}^3\)</span> of PM<span class="math inline">\(_{2.5}\)</span> increases the health outcome by 0.5 units. The true average ATT is:</p>
+<p><span class="math display">\[\text{ATT}_\circ = \mathbb{E}[\tau(D_i)] = 0.5 \cdot \mathbb{E}[D_i] = 0.5 \times 12.5 = 6.25\]</span></p>
+<p>For a <em>linear</em> dose-response, the TWFE estimator is:</p>
+<p><span class="math display">\[\hat\beta^{TWFE} \xrightarrow{p} \frac{\text{Cov}(D_i,\; 0.5\,D_i)}{\text{Var}(D_i)} = \frac{0.5\;\text{Var}(D_i)}{\text{Var}(D_i)} = 0.5\]</span></p>
+</section>
+<section id="results" class="level2">
+<h2 class="anchored" data-anchor-id="results">Results</h2>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>D1   <span class="ot">&lt;-</span> <span class="fu">runif</span>(N, <span class="dv">5</span>, <span class="dv">20</span>)</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>att1 <span class="ot">&lt;-</span> <span class="cf">function</span>(d) <span class="fl">0.5</span> <span class="sc">*</span> d</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>p1       <span class="ot">&lt;-</span> <span class="fu">make_panel</span>(D1, att1)</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>beta1    <span class="ot">&lt;-</span> <span class="fu">twfe_coef</span>(p1)</span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>att1_avg <span class="ot">&lt;-</span> <span class="fu">mean</span>(<span class="fu">att1</span>(D1))</span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>d1       <span class="ot">&lt;-</span> <span class="fu">get_deltas</span>(p1)</span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>fig1_dr <span class="ot">&lt;-</span> <span class="fu">tibble</span>(<span class="at">d =</span> d_seq, <span class="at">att =</span> <span class="fu">att1</span>(d_seq)) <span class="sc">%&gt;%</span></span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>(<span class="fu">aes</span>(<span class="at">x =</span> d, <span class="at">y =</span> att)) <span class="sc">+</span></span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>(<span class="at">color =</span> <span class="st">"#E41A1C"</span>, <span class="at">linewidth =</span> <span class="fl">1.2</span>) <span class="sc">+</span></span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_hline</span>(<span class="at">yintercept =</span> att1_avg, <span class="at">linetype =</span> <span class="st">"dotted"</span>, <span class="at">color =</span> <span class="st">"#E41A1C"</span>,</span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a>             <span class="at">linewidth =</span> <span class="fl">0.8</span>) <span class="sc">+</span></span>
+<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a>  <span class="fu">annotate</span>(<span class="st">"text"</span>, <span class="at">x =</span> <span class="dv">22</span>, <span class="at">y =</span> att1_avg <span class="sc">+</span> <span class="fl">0.5</span>,</span>
+<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a>           <span class="at">label =</span> <span class="fu">sprintf</span>(<span class="st">"ATT° = %.2f"</span>, att1_avg),</span>
+<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a>           <span class="at">color =</span> <span class="st">"#E41A1C"</span>, <span class="at">size =</span> <span class="fl">3.5</span>) <span class="sc">+</span></span>
+<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a>  <span class="fu">coord_cartesian</span>(<span class="at">xlim =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">25</span>)) <span class="sc">+</span></span>
+<span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Dose D (µg/m³)"</span>, <span class="at">y =</span> <span class="st">"τ(d)"</span>,</span>
+<span id="cb2-19"><a href="#cb2-19" aria-hidden="true" tabindex="-1"></a>       <span class="at">title =</span> <span class="st">"True dose-response: τ(d) = 0.5d"</span>)</span>
+<span id="cb2-20"><a href="#cb2-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-21"><a href="#cb2-21" aria-hidden="true" tabindex="-1"></a>fig1_sc <span class="ot">&lt;-</span> d1 <span class="sc">%&gt;%</span></span>
+<span id="cb2-22"><a href="#cb2-22" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>(<span class="fu">aes</span>(<span class="at">x =</span> D, <span class="at">y =</span> delta_y)) <span class="sc">+</span></span>
+<span id="cb2-23"><a href="#cb2-23" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_point</span>(<span class="at">alpha =</span> <span class="fl">0.2</span>, <span class="at">size =</span> <span class="fl">0.6</span>, <span class="at">color =</span> <span class="st">"grey60"</span>) <span class="sc">+</span></span>
+<span id="cb2-24"><a href="#cb2-24" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_smooth</span>(<span class="at">method =</span> <span class="st">"lm"</span>, <span class="at">color =</span> <span class="st">"#E41A1C"</span>, <span class="at">se =</span> <span class="cn">FALSE</span>, <span class="at">linewidth =</span> <span class="fl">1.1</span>) <span class="sc">+</span></span>
+<span id="cb2-25"><a href="#cb2-25" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_hline</span>(<span class="at">yintercept =</span> att1_avg, <span class="at">linetype =</span> <span class="st">"dotted"</span>, <span class="at">color =</span> <span class="st">"steelblue"</span>,</span>
+<span id="cb2-26"><a href="#cb2-26" aria-hidden="true" tabindex="-1"></a>             <span class="at">linewidth =</span> <span class="fl">0.8</span>) <span class="sc">+</span></span>
+<span id="cb2-27"><a href="#cb2-27" aria-hidden="true" tabindex="-1"></a>  <span class="fu">annotate</span>(<span class="st">"text"</span>, <span class="at">x =</span> <span class="fl">20.5</span>, <span class="at">y =</span> att1_avg <span class="sc">+</span> <span class="fl">0.7</span>,</span>
+<span id="cb2-28"><a href="#cb2-28" aria-hidden="true" tabindex="-1"></a>           <span class="at">label =</span> <span class="fu">sprintf</span>(<span class="st">"True ATT° = %.2f"</span>, att1_avg),</span>
+<span id="cb2-29"><a href="#cb2-29" aria-hidden="true" tabindex="-1"></a>           <span class="at">color =</span> <span class="st">"steelblue"</span>, <span class="at">size =</span> <span class="fl">3.2</span>, <span class="at">hjust =</span> <span class="dv">1</span>) <span class="sc">+</span></span>
+<span id="cb2-30"><a href="#cb2-30" aria-hidden="true" tabindex="-1"></a>  <span class="fu">annotate</span>(<span class="st">"text"</span>, <span class="at">x =</span> <span class="dv">6</span>, <span class="at">y =</span> <span class="fu">max</span>(d1<span class="sc">$</span>delta_y) <span class="sc">-</span> <span class="dv">2</span>,</span>
+<span id="cb2-31"><a href="#cb2-31" aria-hidden="true" tabindex="-1"></a>           <span class="at">label =</span> <span class="fu">sprintf</span>(<span class="st">"TWFE slope = %.2f"</span>, beta1),</span>
+<span id="cb2-32"><a href="#cb2-32" aria-hidden="true" tabindex="-1"></a>           <span class="at">color =</span> <span class="st">"#E41A1C"</span>, <span class="at">size =</span> <span class="fl">3.2</span>, <span class="at">hjust =</span> <span class="dv">0</span>) <span class="sc">+</span></span>
+<span id="cb2-33"><a href="#cb2-33" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Dose D (µg/m³)"</span>, <span class="at">y =</span> <span class="st">"ΔY (post − pre)"</span>,</span>
+<span id="cb2-34"><a href="#cb2-34" aria-hidden="true" tabindex="-1"></a>       <span class="at">title =</span> <span class="st">"TWFE regression of ΔY on D"</span>)</span>
+<span id="cb2-35"><a href="#cb2-35" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-36"><a href="#cb2-36" aria-hidden="true" tabindex="-1"></a>fig1_dr <span class="sc">|</span> fig1_sc</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="continuous-did-sim_files/figure-html/scenario1-1.png" class="img-fluid figure-img" width="864"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>The TWFE slope (0.48) is approximately 0.5 — consistent with the true dose-response slope. But this is not a good answer. The true average ATT is <strong>6.19</strong>, which is <span class="math inline">\(\mathbb{E}[D_i] \approx 12.5\)</span> times larger.</p>
+<p>The estimand mismatch here is not a bias in the traditional sense — TWFE is consistently estimating what it can estimate. The problem is that it estimates a <em>marginal causal response</em> (how much does one extra µg/m³ change the outcome?) when most policy questions demand an <em>average level effect</em> (how much total harm does PM<span class="math inline">\(_{2.5}\)</span> cause in this population?). These are genuinely different quantities and different policy questions, even when the dose-response is linear.</p>
+<p>A researcher who obtains a TWFE estimate of 0.5 and interprets it as the average ATT would understate the total harm by a factor of 13.</p>
+</section>
+</section>
+<section id="scenario-2-concave-dose-response-wrong-magnitude" class="level1">
+<h1>Scenario 2: Concave Dose-Response — Wrong Magnitude</h1>
+<section id="dgp-1" class="level2">
+<h2 class="anchored" data-anchor-id="dgp-1">DGP</h2>
+<p><span class="math display">\[D_i \sim \text{Uniform}(5,\, 20), \qquad \tau(d) = 6\!\left(\sqrt{\frac{d}{5}} - 1\right)\]</span></p>
+<p>This dose-response is zero at <span class="math inline">\(d = 5\)</span> µg/m³, positive and <em>concave</em> thereafter — diminishing marginal harm with increasing exposure. Concave dose-response functions are common in environmental health: initial exposures may cause disproportionate harm, with returns diminishing at higher concentrations.</p>
+<p>The average causal response (ACRT) at dose <span class="math inline">\(d\)</span> is the derivative:</p>
+<p><span class="math display">\[\text{ACRT}(d) = \tau'(d) = \frac{6}{10}\,\left(\frac{d}{5}\right)^{-1/2} = \frac{3}{\sqrt{5d}}\]</span></p>
+<p>which is itself a decreasing function of <span class="math inline">\(d\)</span>.</p>
+</section>
+<section id="results-1" class="level2">
+<h2 class="anchored" data-anchor-id="results-1">Results</h2>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>D2   <span class="ot">&lt;-</span> <span class="fu">runif</span>(N, <span class="dv">5</span>, <span class="dv">20</span>)</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>att2 <span class="ot">&lt;-</span> <span class="cf">function</span>(d) <span class="dv">6</span> <span class="sc">*</span> (<span class="fu">sqrt</span>(d <span class="sc">/</span> <span class="dv">5</span>) <span class="sc">-</span> <span class="dv">1</span>)</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>p2       <span class="ot">&lt;-</span> <span class="fu">make_panel</span>(D2, att2)</span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>beta2    <span class="ot">&lt;-</span> <span class="fu">twfe_coef</span>(p2)</span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>att2_avg <span class="ot">&lt;-</span> <span class="fu">mean</span>(<span class="fu">att2</span>(D2))</span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>d2       <span class="ot">&lt;-</span> <span class="fu">get_deltas</span>(p2)</span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>acrt2_med <span class="ot">&lt;-</span> <span class="dv">3</span> <span class="sc">/</span> <span class="fu">sqrt</span>(<span class="dv">5</span> <span class="sc">*</span> <span class="fu">median</span>(D2))  <span class="co"># tau'(d) at median</span></span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a>fig2_dr <span class="ot">&lt;-</span> <span class="fu">tibble</span>(<span class="at">d =</span> d_seq, <span class="at">att =</span> <span class="fu">att2</span>(d_seq)) <span class="sc">%&gt;%</span></span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(d <span class="sc">&gt;=</span> <span class="dv">5</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>(<span class="fu">aes</span>(<span class="at">x =</span> d, <span class="at">y =</span> att)) <span class="sc">+</span></span>
+<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>(<span class="at">color =</span> <span class="st">"#377EB8"</span>, <span class="at">linewidth =</span> <span class="fl">1.2</span>) <span class="sc">+</span></span>
+<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_hline</span>(<span class="at">yintercept =</span> att2_avg, <span class="at">linetype =</span> <span class="st">"dotted"</span>, <span class="at">color =</span> <span class="st">"#377EB8"</span>,</span>
+<span id="cb3-16"><a href="#cb3-16" aria-hidden="true" tabindex="-1"></a>             <span class="at">linewidth =</span> <span class="fl">0.8</span>) <span class="sc">+</span></span>
+<span id="cb3-17"><a href="#cb3-17" aria-hidden="true" tabindex="-1"></a>  <span class="fu">annotate</span>(<span class="st">"text"</span>, <span class="at">x =</span> <span class="dv">22</span>, <span class="at">y =</span> att2_avg <span class="sc">+</span> <span class="fl">0.2</span>,</span>
+<span id="cb3-18"><a href="#cb3-18" aria-hidden="true" tabindex="-1"></a>           <span class="at">label =</span> <span class="fu">sprintf</span>(<span class="st">"ATT° = %.2f"</span>, att2_avg),</span>
+<span id="cb3-19"><a href="#cb3-19" aria-hidden="true" tabindex="-1"></a>           <span class="at">color =</span> <span class="st">"#377EB8"</span>, <span class="at">size =</span> <span class="fl">3.5</span>) <span class="sc">+</span></span>
+<span id="cb3-20"><a href="#cb3-20" aria-hidden="true" tabindex="-1"></a>  <span class="fu">coord_cartesian</span>(<span class="at">xlim =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">25</span>), <span class="at">ylim =</span> <span class="fu">c</span>(<span class="sc">-</span><span class="fl">0.5</span>, <span class="dv">8</span>)) <span class="sc">+</span></span>
+<span id="cb3-21"><a href="#cb3-21" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Dose D (µg/m³)"</span>, <span class="at">y =</span> <span class="st">"τ(d)"</span>,</span>
+<span id="cb3-22"><a href="#cb3-22" aria-hidden="true" tabindex="-1"></a>       <span class="at">title =</span> <span class="st">"True dose-response: concave"</span>)</span>
+<span id="cb3-23"><a href="#cb3-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-24"><a href="#cb3-24" aria-hidden="true" tabindex="-1"></a>fig2_sc <span class="ot">&lt;-</span> d2 <span class="sc">%&gt;%</span></span>
+<span id="cb3-25"><a href="#cb3-25" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>(<span class="fu">aes</span>(<span class="at">x =</span> D, <span class="at">y =</span> delta_y)) <span class="sc">+</span></span>
+<span id="cb3-26"><a href="#cb3-26" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_point</span>(<span class="at">alpha =</span> <span class="fl">0.2</span>, <span class="at">size =</span> <span class="fl">0.6</span>, <span class="at">color =</span> <span class="st">"grey60"</span>) <span class="sc">+</span></span>
+<span id="cb3-27"><a href="#cb3-27" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_smooth</span>(<span class="at">method =</span> <span class="st">"lm"</span>, <span class="at">color =</span> <span class="st">"#377EB8"</span>, <span class="at">se =</span> <span class="cn">FALSE</span>, <span class="at">linewidth =</span> <span class="fl">1.1</span>) <span class="sc">+</span></span>
+<span id="cb3-28"><a href="#cb3-28" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_hline</span>(<span class="at">yintercept =</span> att2_avg, <span class="at">linetype =</span> <span class="st">"dotted"</span>, <span class="at">color =</span> <span class="st">"steelblue"</span>,</span>
+<span id="cb3-29"><a href="#cb3-29" aria-hidden="true" tabindex="-1"></a>             <span class="at">linewidth =</span> <span class="fl">0.8</span>) <span class="sc">+</span></span>
+<span id="cb3-30"><a href="#cb3-30" aria-hidden="true" tabindex="-1"></a>  <span class="fu">annotate</span>(<span class="st">"text"</span>, <span class="at">x =</span> <span class="fl">20.5</span>, <span class="at">y =</span> att2_avg <span class="sc">+</span> <span class="fl">0.25</span>,</span>
+<span id="cb3-31"><a href="#cb3-31" aria-hidden="true" tabindex="-1"></a>           <span class="at">label =</span> <span class="fu">sprintf</span>(<span class="st">"True ATT° = %.2f"</span>, att2_avg),</span>
+<span id="cb3-32"><a href="#cb3-32" aria-hidden="true" tabindex="-1"></a>           <span class="at">color =</span> <span class="st">"steelblue"</span>, <span class="at">size =</span> <span class="fl">3.2</span>, <span class="at">hjust =</span> <span class="dv">1</span>) <span class="sc">+</span></span>
+<span id="cb3-33"><a href="#cb3-33" aria-hidden="true" tabindex="-1"></a>  <span class="fu">annotate</span>(<span class="st">"text"</span>, <span class="at">x =</span> <span class="dv">6</span>, <span class="at">y =</span> <span class="fu">max</span>(d2<span class="sc">$</span>delta_y) <span class="sc">-</span> <span class="dv">2</span>,</span>
+<span id="cb3-34"><a href="#cb3-34" aria-hidden="true" tabindex="-1"></a>           <span class="at">label =</span> <span class="fu">sprintf</span>(<span class="st">"TWFE slope = %.2f"</span>, beta2),</span>
+<span id="cb3-35"><a href="#cb3-35" aria-hidden="true" tabindex="-1"></a>           <span class="at">color =</span> <span class="st">"#377EB8"</span>, <span class="at">size =</span> <span class="fl">3.2</span>, <span class="at">hjust =</span> <span class="dv">0</span>) <span class="sc">+</span></span>
+<span id="cb3-36"><a href="#cb3-36" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Dose D (µg/m³)"</span>, <span class="at">y =</span> <span class="st">"ΔY (post − pre)"</span>,</span>
+<span id="cb3-37"><a href="#cb3-37" aria-hidden="true" tabindex="-1"></a>       <span class="at">title =</span> <span class="st">"TWFE regression of ΔY on D"</span>)</span>
+<span id="cb3-38"><a href="#cb3-38" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-39"><a href="#cb3-39" aria-hidden="true" tabindex="-1"></a>fig2_dr <span class="sc">|</span> fig2_sc</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="continuous-did-sim_files/figure-html/scenario2-1.png" class="img-fluid figure-img" width="864"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>The TWFE estimate (0.39) is close to the true average causal response at the median dose (<span class="math inline">\(d = 12.1\)</span> µg/m³), which is 0.385. That might look like an acceptable result — but the true average ATT is <strong>3.2</strong>, roughly 8 times larger.</p>
+<p>The reason TWFE underestimates is systematic. The TWFE variance weight <span class="math inline">\(w_i \propto (D_i - \bar{D})\)</span> is positive for high-dose units and negative for low-dose units. Because the dose-response is <em>concave</em>, the function is steepest at low doses (where units receive negative or small TWFE weight) and flattest at high doses (where units receive the largest positive TWFE weight). TWFE overweights the flat end of the curve and underweights the steep end, pulling the estimate down toward the flat region.</p>
+<p>The practical upshot: if a researcher uses TWFE on data generated by a concave dose-response (as is typical in environmental health), the magnitude of the estimated effect will be too small regardless of sample size. This is not a finite-sample problem — it is an asymptotic bias from variance weighting.</p>
+</section>
+</section>
+<section id="scenario-3-wrong-sign" class="level1">
+<h1>Scenario 3: Wrong Sign</h1>
+<p>This is the most consequential failure mode. The dose-response is <em>positive everywhere</em> — PM<span class="math inline">\(_{2.5}\)</span> causes harm at every exposure level — but TWFE returns a negative coefficient.</p>
+<section id="dgp-2" class="level2">
+<h2 class="anchored" data-anchor-id="dgp-2">DGP</h2>
+<p><span class="math display">\[D_i = \begin{cases} \mathcal{N}(5,\;1^2) &amp; 50\%\text{ of counties (rural)} \\ \mathcal{N}(17,\;1^2) &amp; 50\%\text{ of counties (industrial)} \end{cases}, \qquad \tau(d) = 20\,e^{-d/4}\]</span></p>
+<p>The dose-response is steeply declining: rural counties near <span class="math inline">\(d = 5\)</span> have <span class="math inline">\(\tau(5) \approx 5.7\)</span>, while industrial counties near <span class="math inline">\(d = 17\)</span> have <span class="math inline">\(\tau(17) \approx 0.3\)</span>. The population average ATT <span class="math inline">\(\approx 3.1\)</span> — positive at every dose.</p>
+<p>The bimodal dose distribution places the mean <span class="math inline">\(\bar{D} \approx 11\)</span> squarely <em>between</em> the two modes. The TWFE weight <span class="math inline">\(w_i \propto (D_i - 11)\)</span> is therefore strongly negative for rural counties (which have the largest effects) and strongly positive for industrial counties (which have the smallest effects). Positively-weighting small effects and negatively-weighting large effects produces a negative sum — even though no individual unit has a negative effect.</p>
+</section>
+<section id="results-2" class="level2">
+<h2 class="anchored" data-anchor-id="results-2">Results</h2>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>D3   <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="fu">rnorm</span>(N <span class="sc">/</span> <span class="dv">2</span>, <span class="at">mean =</span> <span class="dv">5</span>, <span class="at">sd =</span> <span class="dv">1</span>), <span class="fu">rnorm</span>(N <span class="sc">/</span> <span class="dv">2</span>, <span class="at">mean =</span> <span class="dv">17</span>, <span class="at">sd =</span> <span class="dv">1</span>))</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>att3 <span class="ot">&lt;-</span> <span class="cf">function</span>(d) <span class="dv">20</span> <span class="sc">*</span> <span class="fu">exp</span>(<span class="sc">-</span>d <span class="sc">/</span> <span class="dv">4</span>)</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>p3       <span class="ot">&lt;-</span> <span class="fu">make_panel</span>(D3, att3)</span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>beta3    <span class="ot">&lt;-</span> <span class="fu">twfe_coef</span>(p3)</span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>att3_avg <span class="ot">&lt;-</span> <span class="fu">mean</span>(<span class="fu">att3</span>(D3))</span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>d3       <span class="ot">&lt;-</span> <span class="fu">get_deltas</span>(p3)</span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>D3_bar   <span class="ot">&lt;-</span> <span class="fu">mean</span>(D3)</span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>pA <span class="ot">&lt;-</span> <span class="fu">tibble</span>(<span class="at">D =</span> D3) <span class="sc">%&gt;%</span></span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>(<span class="fu">aes</span>(<span class="at">x =</span> D)) <span class="sc">+</span></span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_histogram</span>(<span class="at">bins =</span> <span class="dv">60</span>, <span class="at">fill =</span> <span class="st">"steelblue"</span>, <span class="at">color =</span> <span class="st">"white"</span>,</span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a>                 <span class="at">linewidth =</span> <span class="fl">0.2</span>) <span class="sc">+</span></span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_vline</span>(<span class="at">xintercept =</span> D3_bar, <span class="at">linetype =</span> <span class="st">"dashed"</span>, <span class="at">color =</span> <span class="st">"red"</span>,</span>
+<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a>             <span class="at">linewidth =</span> <span class="fl">0.8</span>) <span class="sc">+</span></span>
+<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">annotate</span>(<span class="st">"text"</span>, <span class="at">x =</span> D3_bar <span class="sc">+</span> <span class="fl">0.6</span>, <span class="at">y =</span> <span class="dv">75</span>,</span>
+<span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a>           <span class="at">label =</span> <span class="fu">sprintf</span>(<span class="st">"D̄ = %.1f"</span>, D3_bar),</span>
+<span id="cb4-18"><a href="#cb4-18" aria-hidden="true" tabindex="-1"></a>           <span class="at">color =</span> <span class="st">"red"</span>, <span class="at">hjust =</span> <span class="dv">0</span>, <span class="at">size =</span> <span class="fl">3.5</span>) <span class="sc">+</span></span>
+<span id="cb4-19"><a href="#cb4-19" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"PM₂.₅ (µg/m³)"</span>, <span class="at">y =</span> <span class="st">"Count"</span>,</span>
+<span id="cb4-20"><a href="#cb4-20" aria-hidden="true" tabindex="-1"></a>       <span class="at">title =</span> <span class="st">"A. Bimodal exposure distribution"</span>,</span>
+<span id="cb4-21"><a href="#cb4-21" aria-hidden="true" tabindex="-1"></a>       <span class="at">subtitle =</span> <span class="st">"50% rural (D ≈ 5), 50% industrial (D ≈ 17)"</span>)</span>
+<span id="cb4-22"><a href="#cb4-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-23"><a href="#cb4-23" aria-hidden="true" tabindex="-1"></a>pB <span class="ot">&lt;-</span> <span class="fu">tibble</span>(<span class="at">d =</span> d_seq, <span class="at">att =</span> <span class="fu">att3</span>(d_seq)) <span class="sc">%&gt;%</span></span>
+<span id="cb4-24"><a href="#cb4-24" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>(<span class="fu">aes</span>(<span class="at">x =</span> d, <span class="at">y =</span> att)) <span class="sc">+</span></span>
+<span id="cb4-25"><a href="#cb4-25" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>(<span class="at">color =</span> <span class="st">"#377EB8"</span>, <span class="at">linewidth =</span> <span class="fl">1.2</span>) <span class="sc">+</span></span>
+<span id="cb4-26"><a href="#cb4-26" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_hline</span>(<span class="at">yintercept =</span> <span class="dv">0</span>, <span class="at">linetype =</span> <span class="st">"dashed"</span>, <span class="at">color =</span> <span class="st">"grey50"</span>) <span class="sc">+</span></span>
+<span id="cb4-27"><a href="#cb4-27" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_hline</span>(<span class="at">yintercept =</span> att3_avg, <span class="at">linetype =</span> <span class="st">"dotted"</span>, <span class="at">color =</span> <span class="st">"#377EB8"</span>,</span>
+<span id="cb4-28"><a href="#cb4-28" aria-hidden="true" tabindex="-1"></a>             <span class="at">linewidth =</span> <span class="fl">0.8</span>) <span class="sc">+</span></span>
+<span id="cb4-29"><a href="#cb4-29" aria-hidden="true" tabindex="-1"></a>  <span class="fu">annotate</span>(<span class="st">"text"</span>, <span class="at">x =</span> <span class="dv">20</span>, <span class="at">y =</span> att3_avg <span class="sc">+</span> <span class="fl">0.9</span>,</span>
+<span id="cb4-30"><a href="#cb4-30" aria-hidden="true" tabindex="-1"></a>           <span class="at">label =</span> <span class="fu">sprintf</span>(<span class="st">"ATT° = %.2f"</span>, att3_avg),</span>
+<span id="cb4-31"><a href="#cb4-31" aria-hidden="true" tabindex="-1"></a>           <span class="at">color =</span> <span class="st">"#377EB8"</span>, <span class="at">size =</span> <span class="fl">3.5</span>) <span class="sc">+</span></span>
+<span id="cb4-32"><a href="#cb4-32" aria-hidden="true" tabindex="-1"></a>  <span class="fu">coord_cartesian</span>(<span class="at">xlim =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">25</span>)) <span class="sc">+</span></span>
+<span id="cb4-33"><a href="#cb4-33" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"PM₂.₅ dose (µg/m³)"</span>, <span class="at">y =</span> <span class="st">"τ(d)"</span>,</span>
+<span id="cb4-34"><a href="#cb4-34" aria-hidden="true" tabindex="-1"></a>       <span class="at">title =</span> <span class="st">"B. True dose-response"</span>,</span>
+<span id="cb4-35"><a href="#cb4-35" aria-hidden="true" tabindex="-1"></a>       <span class="at">subtitle =</span> <span class="st">"Positive everywhere — pollution always harmful"</span>)</span>
+<span id="cb4-36"><a href="#cb4-36" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-37"><a href="#cb4-37" aria-hidden="true" tabindex="-1"></a>pC <span class="ot">&lt;-</span> d3 <span class="sc">%&gt;%</span></span>
+<span id="cb4-38"><a href="#cb4-38" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">weight =</span> D <span class="sc">-</span> D3_bar,</span>
+<span id="cb4-39"><a href="#cb4-39" aria-hidden="true" tabindex="-1"></a>         <span class="at">sign   =</span> <span class="fu">if_else</span>(weight <span class="sc">&lt;</span> <span class="dv">0</span>,</span>
+<span id="cb4-40"><a href="#cb4-40" aria-hidden="true" tabindex="-1"></a>                          <span class="st">"Negative (D &lt; D̄)"</span>, <span class="st">"Positive (D &gt; D̄)"</span>)) <span class="sc">%&gt;%</span></span>
+<span id="cb4-41"><a href="#cb4-41" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>(<span class="fu">aes</span>(<span class="at">x =</span> D, <span class="at">y =</span> weight, <span class="at">color =</span> sign)) <span class="sc">+</span></span>
+<span id="cb4-42"><a href="#cb4-42" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_point</span>(<span class="at">alpha =</span> <span class="fl">0.3</span>, <span class="at">size =</span> <span class="fl">0.7</span>) <span class="sc">+</span></span>
+<span id="cb4-43"><a href="#cb4-43" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_hline</span>(<span class="at">yintercept =</span> <span class="dv">0</span>, <span class="at">linewidth =</span> <span class="fl">0.5</span>) <span class="sc">+</span></span>
+<span id="cb4-44"><a href="#cb4-44" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_vline</span>(<span class="at">xintercept =</span> D3_bar, <span class="at">linetype =</span> <span class="st">"dashed"</span>, <span class="at">color =</span> <span class="st">"grey40"</span>) <span class="sc">+</span></span>
+<span id="cb4-45"><a href="#cb4-45" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_color_manual</span>(</span>
+<span id="cb4-46"><a href="#cb4-46" aria-hidden="true" tabindex="-1"></a>    <span class="at">values =</span> <span class="fu">c</span>(<span class="st">"Negative (D &lt; D̄)"</span> <span class="ot">=</span> <span class="st">"#E41A1C"</span>,</span>
+<span id="cb4-47"><a href="#cb4-47" aria-hidden="true" tabindex="-1"></a>               <span class="st">"Positive (D &gt; D̄)"</span> <span class="ot">=</span> <span class="st">"#377EB8"</span>),</span>
+<span id="cb4-48"><a href="#cb4-48" aria-hidden="true" tabindex="-1"></a>    <span class="at">name =</span> <span class="st">"TWFE weight"</span></span>
+<span id="cb4-49"><a href="#cb4-49" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">+</span></span>
+<span id="cb4-50"><a href="#cb4-50" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"PM₂.₅ (µg/m³)"</span>, <span class="at">y =</span> <span class="st">"D_i − D̄"</span>,</span>
+<span id="cb4-51"><a href="#cb4-51" aria-hidden="true" tabindex="-1"></a>       <span class="at">title =</span> <span class="st">"C. TWFE weights by county"</span>,</span>
+<span id="cb4-52"><a href="#cb4-52" aria-hidden="true" tabindex="-1"></a>       <span class="at">subtitle =</span> <span class="st">"Rural counties (large τ) receive negative weight"</span>) <span class="sc">+</span></span>
+<span id="cb4-53"><a href="#cb4-53" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(<span class="at">legend.position =</span> <span class="st">"bottom"</span>, <span class="at">legend.text =</span> <span class="fu">element_text</span>(<span class="at">size =</span> <span class="dv">9</span>))</span>
+<span id="cb4-54"><a href="#cb4-54" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-55"><a href="#cb4-55" aria-hidden="true" tabindex="-1"></a>pD <span class="ot">&lt;-</span> d3 <span class="sc">%&gt;%</span></span>
+<span id="cb4-56"><a href="#cb4-56" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>(<span class="fu">aes</span>(<span class="at">x =</span> D, <span class="at">y =</span> delta_y)) <span class="sc">+</span></span>
+<span id="cb4-57"><a href="#cb4-57" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_point</span>(<span class="at">alpha =</span> <span class="fl">0.2</span>, <span class="at">size =</span> <span class="fl">0.6</span>, <span class="at">color =</span> <span class="st">"grey60"</span>) <span class="sc">+</span></span>
+<span id="cb4-58"><a href="#cb4-58" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_smooth</span>(<span class="at">method =</span> <span class="st">"lm"</span>, <span class="at">color =</span> <span class="st">"#E41A1C"</span>, <span class="at">se =</span> <span class="cn">FALSE</span>, <span class="at">linewidth =</span> <span class="fl">1.1</span>) <span class="sc">+</span></span>
+<span id="cb4-59"><a href="#cb4-59" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_hline</span>(<span class="at">yintercept =</span> att3_avg, <span class="at">linetype =</span> <span class="st">"dotted"</span>, <span class="at">color =</span> <span class="st">"#377EB8"</span>,</span>
+<span id="cb4-60"><a href="#cb4-60" aria-hidden="true" tabindex="-1"></a>             <span class="at">linewidth =</span> <span class="fl">0.8</span>) <span class="sc">+</span></span>
+<span id="cb4-61"><a href="#cb4-61" aria-hidden="true" tabindex="-1"></a>  <span class="fu">annotate</span>(<span class="st">"text"</span>, <span class="at">x =</span> <span class="fl">20.5</span>, <span class="at">y =</span> att3_avg <span class="sc">+</span> <span class="dv">1</span>,</span>
+<span id="cb4-62"><a href="#cb4-62" aria-hidden="true" tabindex="-1"></a>           <span class="at">label =</span> <span class="fu">sprintf</span>(<span class="st">"True ATT° = %.2f"</span>, att3_avg),</span>
+<span id="cb4-63"><a href="#cb4-63" aria-hidden="true" tabindex="-1"></a>           <span class="at">color =</span> <span class="st">"#377EB8"</span>, <span class="at">size =</span> <span class="fl">3.2</span>, <span class="at">hjust =</span> <span class="dv">1</span>) <span class="sc">+</span></span>
+<span id="cb4-64"><a href="#cb4-64" aria-hidden="true" tabindex="-1"></a>  <span class="fu">annotate</span>(<span class="st">"text"</span>, <span class="at">x =</span> <span class="dv">3</span>, <span class="at">y =</span> <span class="fu">min</span>(d3<span class="sc">$</span>delta_y) <span class="sc">+</span> <span class="dv">2</span>,</span>
+<span id="cb4-65"><a href="#cb4-65" aria-hidden="true" tabindex="-1"></a>           <span class="at">label =</span> <span class="fu">sprintf</span>(<span class="st">"TWFE slope = %.2f"</span>, beta3),</span>
+<span id="cb4-66"><a href="#cb4-66" aria-hidden="true" tabindex="-1"></a>           <span class="at">color =</span> <span class="st">"#E41A1C"</span>, <span class="at">size =</span> <span class="fl">3.2</span>, <span class="at">hjust =</span> <span class="dv">0</span>) <span class="sc">+</span></span>
+<span id="cb4-67"><a href="#cb4-67" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"PM₂.₅ (µg/m³)"</span>, <span class="at">y =</span> <span class="st">"ΔY (post − pre)"</span>,</span>
+<span id="cb4-68"><a href="#cb4-68" aria-hidden="true" tabindex="-1"></a>       <span class="at">title =</span> <span class="st">"D. TWFE regression of ΔY on D"</span>,</span>
+<span id="cb4-69"><a href="#cb4-69" aria-hidden="true" tabindex="-1"></a>       <span class="at">subtitle =</span> <span class="st">"Negative slope despite positive effects everywhere"</span>)</span>
+<span id="cb4-70"><a href="#cb4-70" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-71"><a href="#cb4-71" aria-hidden="true" tabindex="-1"></a>(pA <span class="sc">|</span> pB) <span class="sc">/</span> (pC <span class="sc">|</span> pD) <span class="sc">+</span></span>
+<span id="cb4-72"><a href="#cb4-72" aria-hidden="true" tabindex="-1"></a>  <span class="fu">plot_annotation</span>(</span>
+<span id="cb4-73"><a href="#cb4-73" aria-hidden="true" tabindex="-1"></a>    <span class="at">title =</span> <span class="st">"Scenario 3: TWFE Recovers the Wrong Sign"</span>,</span>
+<span id="cb4-74"><a href="#cb4-74" aria-hidden="true" tabindex="-1"></a>    <span class="at">subtitle =</span> <span class="fu">sprintf</span>(</span>
+<span id="cb4-75"><a href="#cb4-75" aria-hidden="true" tabindex="-1"></a>      <span class="st">"True ATT° = +%.2f (PM₂.₅ is harmful everywhere);   TWFE = %.2f (says it's beneficial)"</span>,</span>
+<span id="cb4-76"><a href="#cb4-76" aria-hidden="true" tabindex="-1"></a>      att3_avg, beta3</span>
+<span id="cb4-77"><a href="#cb4-77" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb4-78"><a href="#cb4-78" aria-hidden="true" tabindex="-1"></a>  )</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="continuous-did-sim_files/figure-html/scenario3-1.png" class="img-fluid figure-img" width="960"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>The TWFE estimate is <strong>-0.48</strong> — negative — despite every county having a positive treatment effect. A researcher relying on this result would conclude that PM<span class="math inline">\(_{2.5}\)</span> <em>reduces</em> health harm. The true average ATT is <strong>+3.12</strong>.</p>
+<p>This requires neither a parallel trends violation nor measurement error nor model misspecification. The DGP satisfies parallel trends exactly. The only requirements are:</p>
+<ol type="1">
+<li>A dose-response that <em>decreases</em> with dose (large effects at low exposure, small at high exposure), and</li>
+<li>A dose distribution with mass concentrated at the extremes so that <span class="math inline">\(\bar{D}\)</span> lies between them.</li>
+</ol>
+<p>Both are empirically plausible for ambient PM<span class="math inline">\(_{2.5}\)</span>. Rural areas have lower concentrations; industrial and urban areas have higher concentrations. There are genuine scientific reasons — healthy survivor selection, compositional differences in PM<span class="math inline">\(_{2.5}\)</span> chemistry, adaptive responses — to expect attenuated health signals in chronically high-exposure populations. Whether the actual dose-response is declining over U.S. PM<span class="math inline">\(_{2.5}\)</span> ranges is an empirical question. This simulation shows that if it is, TWFE produces a qualitatively wrong answer.</p>
+</section>
+<section id="the-weight-anatomy" class="level2">
+<h2 class="anchored" data-anchor-id="the-weight-anatomy">The Weight Anatomy</h2>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>weight_df <span class="ot">&lt;-</span> <span class="fu">tibble</span>(</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">D      =</span> D3,</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">att    =</span> <span class="fu">att3</span>(D3),</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">weight =</span> D3 <span class="sc">-</span> D3_bar,</span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">sign   =</span> <span class="fu">if_else</span>(D3 <span class="sc">&lt;</span> D3_bar, <span class="st">"Negative weight"</span>, <span class="st">"Positive weight"</span>)</span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>weight_df <span class="sc">%&gt;%</span></span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>(<span class="fu">aes</span>(<span class="at">x =</span> weight, <span class="at">y =</span> att, <span class="at">color =</span> sign)) <span class="sc">+</span></span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_point</span>(<span class="at">alpha =</span> <span class="fl">0.3</span>, <span class="at">size =</span> <span class="fl">0.8</span>) <span class="sc">+</span></span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_hline</span>(<span class="at">yintercept =</span> <span class="dv">0</span>, <span class="at">linetype =</span> <span class="st">"dashed"</span>) <span class="sc">+</span></span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_vline</span>(<span class="at">xintercept =</span> <span class="dv">0</span>, <span class="at">linetype =</span> <span class="st">"dashed"</span>) <span class="sc">+</span></span>
+<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_color_manual</span>(</span>
+<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a>    <span class="at">values =</span> <span class="fu">c</span>(<span class="st">"Negative weight"</span> <span class="ot">=</span> <span class="st">"#E41A1C"</span>,</span>
+<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a>               <span class="st">"Positive weight"</span> <span class="ot">=</span> <span class="st">"#377EB8"</span>),</span>
+<span id="cb5-16"><a href="#cb5-16" aria-hidden="true" tabindex="-1"></a>    <span class="at">name =</span> <span class="st">""</span></span>
+<span id="cb5-17"><a href="#cb5-17" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">+</span></span>
+<span id="cb5-18"><a href="#cb5-18" aria-hidden="true" tabindex="-1"></a>  <span class="fu">annotate</span>(<span class="st">"text"</span>, <span class="at">x =</span> <span class="sc">-</span><span class="dv">10</span>, <span class="at">y =</span> <span class="dv">12</span>,</span>
+<span id="cb5-19"><a href="#cb5-19" aria-hidden="true" tabindex="-1"></a>           <span class="at">label =</span> <span class="st">"Large τ,</span><span class="sc">\n</span><span class="st">negative weight</span><span class="sc">\n</span><span class="st">(rural areas)"</span>,</span>
+<span id="cb5-20"><a href="#cb5-20" aria-hidden="true" tabindex="-1"></a>           <span class="at">color =</span> <span class="st">"#E41A1C"</span>, <span class="at">size =</span> <span class="fl">3.5</span>) <span class="sc">+</span></span>
+<span id="cb5-21"><a href="#cb5-21" aria-hidden="true" tabindex="-1"></a>  <span class="fu">annotate</span>(<span class="st">"text"</span>, <span class="at">x =</span> <span class="dv">5</span>, <span class="at">y =</span> <span class="fl">0.4</span>,</span>
+<span id="cb5-22"><a href="#cb5-22" aria-hidden="true" tabindex="-1"></a>           <span class="at">label =</span> <span class="st">"Small τ,</span><span class="sc">\n</span><span class="st">positive weight</span><span class="sc">\n</span><span class="st">(industrial areas)"</span>,</span>
+<span id="cb5-23"><a href="#cb5-23" aria-hidden="true" tabindex="-1"></a>           <span class="at">color =</span> <span class="st">"#377EB8"</span>, <span class="at">size =</span> <span class="fl">3.5</span>) <span class="sc">+</span></span>
+<span id="cb5-24"><a href="#cb5-24" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(</span>
+<span id="cb5-25"><a href="#cb5-25" aria-hidden="true" tabindex="-1"></a>    <span class="at">x =</span> <span class="st">"TWFE weight (D_i − D̄)"</span>,</span>
+<span id="cb5-26"><a href="#cb5-26" aria-hidden="true" tabindex="-1"></a>    <span class="at">y =</span> <span class="st">"True τ(D_i)"</span>,</span>
+<span id="cb5-27"><a href="#cb5-27" aria-hidden="true" tabindex="-1"></a>    <span class="at">title =</span> <span class="st">"TWFE weight vs. unit's true treatment effect"</span>,</span>
+<span id="cb5-28"><a href="#cb5-28" aria-hidden="true" tabindex="-1"></a>    <span class="at">subtitle =</span> <span class="fu">sprintf</span>(</span>
+<span id="cb5-29"><a href="#cb5-29" aria-hidden="true" tabindex="-1"></a>      <span class="st">"Correlation = %.3f — units with the largest effects are negatively weighted"</span>,</span>
+<span id="cb5-30"><a href="#cb5-30" aria-hidden="true" tabindex="-1"></a>      <span class="fu">cor</span>(weight_df<span class="sc">$</span>weight, weight_df<span class="sc">$</span>att)</span>
+<span id="cb5-31"><a href="#cb5-31" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb5-32"><a href="#cb5-32" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">+</span></span>
+<span id="cb5-33"><a href="#cb5-33" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(<span class="at">legend.position =</span> <span class="st">"none"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="continuous-did-sim_files/figure-html/weight_anatomy-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>The correlation between a county’s TWFE weight and its true treatment effect is <strong>-0.964</strong>. The estimator is nearly perfectly designed to discount large effects and amplify small ones. This is not an unlucky simulation draw — it follows directly from variance weighting combined with a dose-response that is decreasing in <span class="math inline">\(d\)</span>.</p>
+</section>
+</section>
+<section id="scenario-4-always-on-treatment-no-post-period" class="level1">
+<h1>Scenario 4: Always-On Treatment — No Post-Period</h1>
+<p>Scenarios 1–3 all assumed a clean <em>differential exposure design</em>: a policy event occurs, it “activates” a fixed county-level dose <span class="math inline">\(D_i\)</span>, and we can form the <span class="math inline">\(D_i \cdot \text{Post}_t\)</span> regressor. Most ambient PM<span class="math inline">\(_{2.5}\)</span> research lacks this structure. There is no event, no “before the dose.” PM<span class="math inline">\(_{2.5}\)</span> varies continuously across both units and time, and every county is exposed in every year.</p>
+<p>The canonical always-on regression is:</p>
+<p><span class="math display">\[Y_{it} = \alpha_i + \lambda_t + \beta^{TWFE} D_{it} + \varepsilon_{it}\]</span></p>
+<p>where <span class="math inline">\(D_{it}\)</span> is now time-varying. After removing unit and time fixed effects, TWFE identifies off <strong>within-unit, within-year</strong> variation in PM<span class="math inline">\(_{2.5}\)</span>: year-to-year fluctuations around each county’s mean. The question is: what drives those fluctuations, and is that variation exogenous?</p>
+<p>For ambient PM<span class="math inline">\(_{2.5}\)</span>, the answer is almost certainly no. Year-to-year variation within a county reflects meteorology (cold winters increase heating demand and particle emissions), economic cycles (recessions reduce industrial output and thus PM<span class="math inline">\(_{2.5}\)</span>), and wildfire activity — all of which also affect health outcomes through pathways independent of PM<span class="math inline">\(_{2.5}\)</span>. TWFE cannot separate the causal PM<span class="math inline">\(_{2.5}\)</span> effect from these simultaneous influences.</p>
+<section id="dgp-3" class="level2">
+<h2 class="anchored" data-anchor-id="dgp-3">DGP</h2>
+<p>The true causal response is <span class="math inline">\(\tau = 0.5\)</span> (each µg/m³ increases the mortality rate by 0.5 units). An unobserved economic activity factor <span class="math inline">\(C_{it}\)</span> follows a persistent AR(1) process and simultaneously:</p>
+<ul>
+<li><strong>Drives PM<span class="math inline">\(_{2.5}\)</span> upward</strong>: higher economic activity → more industrial output → more pollution.</li>
+<li><strong>Drives mortality downward</strong>: higher economic activity → better incomes, healthcare access, nutrition → lower mortality, independently of pollution.</li>
+</ul>
+<p><span class="math display">\[D_{it} = \mu_i + C_{it} + u_{it}, \qquad C_{it} = 0.9\,C_{i,t-1} + \eta_{it},\quad \eta \sim \mathcal{N}(0,\, 0.7^2)\]</span></p>
+<p><span class="math display">\[Y_{it} = \alpha_i + \lambda_t + 0.5\,D_{it} + (-2)\,C_{it} + \varepsilon_{it}\]</span></p>
+<p><span class="math inline">\(u_{it} \sim \mathcal{N}(0,\, 1.5^2)\)</span> is exogenous weather-driven noise. The persistence <span class="math inline">\(\rho = 0.9\)</span> means the economic factor moves slowly — it dominates the <em>level</em> of PM<span class="math inline">\(_{2.5}\)</span> within a county but contributes only modestly to year-to-year <em>changes</em> (since <span class="math inline">\(\text{Var}(\Delta C) = 2\sigma_\eta^2/(1+\rho) \approx 0.52\)</span>, versus <span class="math inline">\(\text{Var}(\Delta u) = 2\sigma_u^2 = 4.5\)</span>).</p>
+<p>The TWFE bias formula for this DGP is:</p>
+<p><span class="math display">\[\text{plim}(\hat\beta^{TWFE}) = \tau + \delta \cdot \underbrace{\frac{\widetilde{\text{Var}}(C)}{\widetilde{\text{Var}}(C) + \widetilde{\text{Var}}(u)}}_{R^2_C \approx 0.26} \approx 0.5 + (-2)(0.26) = 0.0\]</span></p>
+<p>where <span class="math inline">\(\widetilde{\text{Var}}(\cdot)\)</span> denotes within-unit, within-time variance. TWFE is predicted to give approximately zero — effectively declaring PM<span class="math inline">\(_{2.5}\)</span> to have no health effect.</p>
+</section>
+<section id="results-3" class="level2">
+<h2 class="anchored" data-anchor-id="results-3">Results</h2>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">123</span>)</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>N_ao <span class="ot">&lt;-</span> <span class="dv">500</span>; T_ao <span class="ot">&lt;-</span> <span class="dv">10</span>; tau_ao <span class="ot">&lt;-</span> <span class="fl">0.5</span>; delta_ao <span class="ot">&lt;-</span> <span class="sc">-</span><span class="dv">2</span></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>rho_ao <span class="ot">&lt;-</span> <span class="fl">0.9</span>; s_eta <span class="ot">&lt;-</span> <span class="fl">0.7</span>; s_u <span class="ot">&lt;-</span> <span class="fl">1.5</span></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>alpha_ao <span class="ot">&lt;-</span> <span class="fu">rnorm</span>(N_ao, <span class="dv">50</span>, <span class="dv">5</span>)</span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>mu_ao    <span class="ot">&lt;-</span> <span class="fu">runif</span>(N_ao, <span class="dv">5</span>, <span class="dv">15</span>)</span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>lambda_ao <span class="ot">&lt;-</span> <span class="fu">seq</span>(<span class="dv">0</span>, <span class="sc">-</span>(T_ao <span class="sc">-</span> <span class="dv">1</span>) <span class="sc">*</span> <span class="fl">0.3</span>, <span class="at">by =</span> <span class="sc">-</span><span class="fl">0.3</span>)</span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>sigma_C_ao <span class="ot">&lt;-</span> s_eta <span class="sc">/</span> <span class="fu">sqrt</span>(<span class="dv">1</span> <span class="sc">-</span> rho_ao<span class="sc">^</span><span class="dv">2</span>)</span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a>C_mat <span class="ot">&lt;-</span> <span class="fu">matrix</span>(<span class="cn">NA_real_</span>, N_ao, T_ao)</span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a>C_mat[, <span class="dv">1</span>] <span class="ot">&lt;-</span> <span class="fu">rnorm</span>(N_ao, <span class="dv">0</span>, sigma_C_ao)</span>
+<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> (t <span class="cf">in</span> <span class="dv">2</span><span class="sc">:</span>T_ao) C_mat[, t] <span class="ot">&lt;-</span> rho_ao <span class="sc">*</span> C_mat[, t<span class="dv">-1</span>] <span class="sc">+</span> <span class="fu">rnorm</span>(N_ao, <span class="dv">0</span>, s_eta)</span>
+<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-14"><a href="#cb6-14" aria-hidden="true" tabindex="-1"></a>panel_ao <span class="ot">&lt;-</span> <span class="fu">expand_grid</span>(<span class="at">unit =</span> <span class="dv">1</span><span class="sc">:</span>N_ao, <span class="at">year =</span> <span class="dv">1</span><span class="sc">:</span>T_ao) <span class="sc">%&gt;%</span></span>
+<span id="cb6-15"><a href="#cb6-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb6-16"><a href="#cb6-16" aria-hidden="true" tabindex="-1"></a>    <span class="at">alpha  =</span> alpha_ao[unit],</span>
+<span id="cb6-17"><a href="#cb6-17" aria-hidden="true" tabindex="-1"></a>    <span class="at">mu     =</span> mu_ao[unit],</span>
+<span id="cb6-18"><a href="#cb6-18" aria-hidden="true" tabindex="-1"></a>    <span class="at">lambda =</span> lambda_ao[year],</span>
+<span id="cb6-19"><a href="#cb6-19" aria-hidden="true" tabindex="-1"></a>    <span class="at">C      =</span> C_mat[<span class="fu">cbind</span>(unit, year)],</span>
+<span id="cb6-20"><a href="#cb6-20" aria-hidden="true" tabindex="-1"></a>    <span class="at">u      =</span> <span class="fu">rnorm</span>(<span class="fu">n</span>(), <span class="dv">0</span>, s_u),</span>
+<span id="cb6-21"><a href="#cb6-21" aria-hidden="true" tabindex="-1"></a>    <span class="at">D      =</span> mu <span class="sc">+</span> C <span class="sc">+</span> u,</span>
+<span id="cb6-22"><a href="#cb6-22" aria-hidden="true" tabindex="-1"></a>    <span class="at">Y      =</span> alpha <span class="sc">+</span> lambda <span class="sc">+</span> tau_ao <span class="sc">*</span> D <span class="sc">+</span> delta_ao <span class="sc">*</span> C <span class="sc">+</span> <span class="fu">rnorm</span>(<span class="fu">n</span>(), <span class="dv">0</span>, <span class="dv">2</span>)</span>
+<span id="cb6-23"><a href="#cb6-23" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb6-24"><a href="#cb6-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-25"><a href="#cb6-25" aria-hidden="true" tabindex="-1"></a><span class="co"># Three estimators</span></span>
+<span id="cb6-26"><a href="#cb6-26" aria-hidden="true" tabindex="-1"></a>beta_twfe_ao   <span class="ot">&lt;-</span> <span class="fu">unname</span>(<span class="fu">coef</span>(<span class="fu">feols</span>(Y <span class="sc">~</span> D     <span class="sc">|</span> unit <span class="sc">+</span> year, panel_ao, <span class="at">warn =</span> <span class="cn">FALSE</span>))[<span class="dv">1</span>])</span>
+<span id="cb6-27"><a href="#cb6-27" aria-hidden="true" tabindex="-1"></a>beta_oracle_ao <span class="ot">&lt;-</span> <span class="fu">unname</span>(<span class="fu">coef</span>(<span class="fu">feols</span>(Y <span class="sc">~</span> D <span class="sc">+</span> C <span class="sc">|</span> unit <span class="sc">+</span> year, panel_ao, <span class="at">warn =</span> <span class="cn">FALSE</span>))[<span class="st">"D"</span>])</span>
+<span id="cb6-28"><a href="#cb6-28" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-29"><a href="#cb6-29" aria-hidden="true" tabindex="-1"></a><span class="co"># Within-unit, within-time residuals for plotting</span></span>
+<span id="cb6-30"><a href="#cb6-30" aria-hidden="true" tabindex="-1"></a>Ytilde <span class="ot">&lt;-</span> <span class="fu">resid</span>(<span class="fu">feols</span>(Y <span class="sc">~</span> <span class="dv">0</span> <span class="sc">|</span> unit <span class="sc">+</span> year, panel_ao, <span class="at">warn =</span> <span class="cn">FALSE</span>))</span>
+<span id="cb6-31"><a href="#cb6-31" aria-hidden="true" tabindex="-1"></a>Dtilde <span class="ot">&lt;-</span> <span class="fu">resid</span>(<span class="fu">feols</span>(D <span class="sc">~</span> <span class="dv">0</span> <span class="sc">|</span> unit <span class="sc">+</span> year, panel_ao, <span class="at">warn =</span> <span class="cn">FALSE</span>))</span>
+<span id="cb6-32"><a href="#cb6-32" aria-hidden="true" tabindex="-1"></a>Ctilde <span class="ot">&lt;-</span> <span class="fu">resid</span>(<span class="fu">feols</span>(C <span class="sc">~</span> <span class="dv">0</span> <span class="sc">|</span> unit <span class="sc">+</span> year, panel_ao, <span class="at">warn =</span> <span class="cn">FALSE</span>))</span>
+<span id="cb6-33"><a href="#cb6-33" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-34"><a href="#cb6-34" aria-hidden="true" tabindex="-1"></a>samp <span class="ot">&lt;-</span> <span class="fu">tibble</span>(Ytilde, Dtilde, Ctilde) <span class="sc">%&gt;%</span> <span class="fu">slice_sample</span>(<span class="at">n =</span> <span class="dv">3000</span>)</span>
+<span id="cb6-35"><a href="#cb6-35" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-36"><a href="#cb6-36" aria-hidden="true" tabindex="-1"></a><span class="co"># Panel A: The direct confounding path: C̃ → Ỹ</span></span>
+<span id="cb6-37"><a href="#cb6-37" aria-hidden="true" tabindex="-1"></a>pA4 <span class="ot">&lt;-</span> samp <span class="sc">%&gt;%</span></span>
+<span id="cb6-38"><a href="#cb6-38" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>(<span class="fu">aes</span>(<span class="at">x =</span> Ctilde, <span class="at">y =</span> Ytilde)) <span class="sc">+</span></span>
+<span id="cb6-39"><a href="#cb6-39" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_point</span>(<span class="at">alpha =</span> <span class="fl">0.2</span>, <span class="at">size =</span> <span class="fl">0.5</span>, <span class="at">color =</span> <span class="st">"grey50"</span>) <span class="sc">+</span></span>
+<span id="cb6-40"><a href="#cb6-40" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_smooth</span>(<span class="at">method =</span> <span class="st">"lm"</span>, <span class="at">color =</span> <span class="st">"#E41A1C"</span>, <span class="at">se =</span> <span class="cn">FALSE</span>, <span class="at">linewidth =</span> <span class="fl">1.1</span>) <span class="sc">+</span></span>
+<span id="cb6-41"><a href="#cb6-41" aria-hidden="true" tabindex="-1"></a>  <span class="fu">annotate</span>(<span class="st">"text"</span>, <span class="at">x =</span> <span class="sc">-</span><span class="fl">3.5</span>, <span class="at">y =</span> <span class="dv">12</span>,</span>
+<span id="cb6-42"><a href="#cb6-42" aria-hidden="true" tabindex="-1"></a>           <span class="at">label =</span> <span class="fu">sprintf</span>(<span class="st">"slope ≈ %.1f</span><span class="sc">\n</span><span class="st">(better economy</span><span class="sc">\n</span><span class="st">→ lower mortality)"</span>, delta_ao),</span>
+<span id="cb6-43"><a href="#cb6-43" aria-hidden="true" tabindex="-1"></a>           <span class="at">color =</span> <span class="st">"#E41A1C"</span>, <span class="at">size =</span> <span class="fl">3.2</span>, <span class="at">hjust =</span> <span class="dv">0</span>) <span class="sc">+</span></span>
+<span id="cb6-44"><a href="#cb6-44" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Economic factor C̃ (within-unit demeaned)"</span>,</span>
+<span id="cb6-45"><a href="#cb6-45" aria-hidden="true" tabindex="-1"></a>       <span class="at">y =</span> <span class="st">"Mortality Ỹ"</span>,</span>
+<span id="cb6-46"><a href="#cb6-46" aria-hidden="true" tabindex="-1"></a>       <span class="at">title =</span> <span class="st">"A. Confounder acts directly on health"</span>,</span>
+<span id="cb6-47"><a href="#cb6-47" aria-hidden="true" tabindex="-1"></a>       <span class="at">subtitle =</span> <span class="st">"Better economy → more PM₂.₅ AND better health"</span>)</span>
+<span id="cb6-48"><a href="#cb6-48" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-49"><a href="#cb6-49" aria-hidden="true" tabindex="-1"></a><span class="co"># Panel B: D̃ → Ỹ — what TWFE regresses</span></span>
+<span id="cb6-50"><a href="#cb6-50" aria-hidden="true" tabindex="-1"></a>pB4 <span class="ot">&lt;-</span> samp <span class="sc">%&gt;%</span></span>
+<span id="cb6-51"><a href="#cb6-51" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>(<span class="fu">aes</span>(<span class="at">x =</span> Dtilde, <span class="at">y =</span> Ytilde)) <span class="sc">+</span></span>
+<span id="cb6-52"><a href="#cb6-52" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_point</span>(<span class="at">alpha =</span> <span class="fl">0.2</span>, <span class="at">size =</span> <span class="fl">0.5</span>, <span class="at">color =</span> <span class="st">"grey50"</span>) <span class="sc">+</span></span>
+<span id="cb6-53"><a href="#cb6-53" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_smooth</span>(<span class="at">method =</span> <span class="st">"lm"</span>, <span class="at">color =</span> <span class="st">"#E41A1C"</span>, <span class="at">se =</span> <span class="cn">FALSE</span>, <span class="at">linewidth =</span> <span class="fl">1.1</span>) <span class="sc">+</span></span>
+<span id="cb6-54"><a href="#cb6-54" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_abline</span>(<span class="at">intercept =</span> <span class="dv">0</span>, <span class="at">slope =</span> tau_ao, <span class="at">linetype =</span> <span class="st">"dashed"</span>,</span>
+<span id="cb6-55"><a href="#cb6-55" aria-hidden="true" tabindex="-1"></a>              <span class="at">color =</span> <span class="st">"#377EB8"</span>, <span class="at">linewidth =</span> <span class="fl">1.1</span>) <span class="sc">+</span></span>
+<span id="cb6-56"><a href="#cb6-56" aria-hidden="true" tabindex="-1"></a>  <span class="fu">annotate</span>(<span class="st">"text"</span>, <span class="at">x =</span> <span class="sc">-</span><span class="dv">5</span>, <span class="at">y =</span> <span class="dv">11</span>,</span>
+<span id="cb6-57"><a href="#cb6-57" aria-hidden="true" tabindex="-1"></a>           <span class="at">label =</span> <span class="fu">sprintf</span>(<span class="st">"TWFE slope = %.3f</span><span class="sc">\n</span><span class="st">(≈ no effect)"</span>, beta_twfe_ao),</span>
+<span id="cb6-58"><a href="#cb6-58" aria-hidden="true" tabindex="-1"></a>           <span class="at">color =</span> <span class="st">"#E41A1C"</span>, <span class="at">size =</span> <span class="fl">3.2</span>, <span class="at">hjust =</span> <span class="dv">0</span>) <span class="sc">+</span></span>
+<span id="cb6-59"><a href="#cb6-59" aria-hidden="true" tabindex="-1"></a>  <span class="fu">annotate</span>(<span class="st">"text"</span>, <span class="at">x =</span> <span class="fl">3.5</span>, <span class="at">y =</span> <span class="sc">-</span><span class="dv">9</span>,</span>
+<span id="cb6-60"><a href="#cb6-60" aria-hidden="true" tabindex="-1"></a>           <span class="at">label =</span> <span class="fu">sprintf</span>(<span class="st">"True τ = %.1f"</span>, tau_ao),</span>
+<span id="cb6-61"><a href="#cb6-61" aria-hidden="true" tabindex="-1"></a>           <span class="at">color =</span> <span class="st">"#377EB8"</span>, <span class="at">size =</span> <span class="fl">3.2</span>, <span class="at">hjust =</span> <span class="dv">1</span>) <span class="sc">+</span></span>
+<span id="cb6-62"><a href="#cb6-62" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"PM₂.₅ D̃ (within-unit demeaned)"</span>,</span>
+<span id="cb6-63"><a href="#cb6-63" aria-hidden="true" tabindex="-1"></a>       <span class="at">y =</span> <span class="st">"Mortality Ỹ"</span>,</span>
+<span id="cb6-64"><a href="#cb6-64" aria-hidden="true" tabindex="-1"></a>       <span class="at">title =</span> <span class="st">"B. TWFE regression of Ỹ on D̃"</span>,</span>
+<span id="cb6-65"><a href="#cb6-65" aria-hidden="true" tabindex="-1"></a>       <span class="at">subtitle =</span> <span class="st">"Confounding nearly cancels the true PM₂.₅ effect"</span>)</span>
+<span id="cb6-66"><a href="#cb6-66" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-67"><a href="#cb6-67" aria-hidden="true" tabindex="-1"></a><span class="co"># Panel C: Estimator comparison</span></span>
+<span id="cb6-68"><a href="#cb6-68" aria-hidden="true" tabindex="-1"></a><span class="fu">tibble</span>(</span>
+<span id="cb6-69"><a href="#cb6-69" aria-hidden="true" tabindex="-1"></a>  <span class="at">Estimator =</span> <span class="fu">factor</span>(</span>
+<span id="cb6-70"><a href="#cb6-70" aria-hidden="true" tabindex="-1"></a>    <span class="fu">c</span>(<span class="st">"True τ"</span>, <span class="st">"Oracle TWFE</span><span class="sc">\n</span><span class="st">(C known)"</span>, <span class="st">"TWFE</span><span class="sc">\n</span><span class="st">(C omitted)"</span>),</span>
+<span id="cb6-71"><a href="#cb6-71" aria-hidden="true" tabindex="-1"></a>    <span class="at">levels =</span> <span class="fu">c</span>(<span class="st">"True τ"</span>, <span class="st">"Oracle TWFE</span><span class="sc">\n</span><span class="st">(C known)"</span>, <span class="st">"TWFE</span><span class="sc">\n</span><span class="st">(C omitted)"</span>)</span>
+<span id="cb6-72"><a href="#cb6-72" aria-hidden="true" tabindex="-1"></a>  ),</span>
+<span id="cb6-73"><a href="#cb6-73" aria-hidden="true" tabindex="-1"></a>  <span class="at">Estimate =</span> <span class="fu">c</span>(tau_ao, beta_oracle_ao, beta_twfe_ao),</span>
+<span id="cb6-74"><a href="#cb6-74" aria-hidden="true" tabindex="-1"></a>  <span class="at">Type     =</span> <span class="fu">c</span>(<span class="st">"True"</span>, <span class="st">"Oracle"</span>, <span class="st">"Biased"</span>)</span>
+<span id="cb6-75"><a href="#cb6-75" aria-hidden="true" tabindex="-1"></a>) <span class="sc">%&gt;%</span></span>
+<span id="cb6-76"><a href="#cb6-76" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>(<span class="fu">aes</span>(<span class="at">x =</span> Estimator, <span class="at">y =</span> Estimate, <span class="at">fill =</span> Type)) <span class="sc">+</span></span>
+<span id="cb6-77"><a href="#cb6-77" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_col</span>(<span class="at">width =</span> <span class="fl">0.5</span>) <span class="sc">+</span></span>
+<span id="cb6-78"><a href="#cb6-78" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_hline</span>(<span class="at">yintercept =</span> tau_ao, <span class="at">linetype =</span> <span class="st">"dashed"</span>, <span class="at">linewidth =</span> <span class="fl">0.8</span>) <span class="sc">+</span></span>
+<span id="cb6-79"><a href="#cb6-79" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_hline</span>(<span class="at">yintercept =</span> <span class="dv">0</span>, <span class="at">linewidth =</span> <span class="fl">0.4</span>) <span class="sc">+</span></span>
+<span id="cb6-80"><a href="#cb6-80" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_fill_manual</span>(</span>
+<span id="cb6-81"><a href="#cb6-81" aria-hidden="true" tabindex="-1"></a>    <span class="at">values =</span> <span class="fu">c</span>(<span class="st">"True"</span> <span class="ot">=</span> <span class="st">"#377EB8"</span>, <span class="st">"Oracle"</span> <span class="ot">=</span> <span class="st">"#4DAF4A"</span>, <span class="st">"Biased"</span> <span class="ot">=</span> <span class="st">"#E41A1C"</span>),</span>
+<span id="cb6-82"><a href="#cb6-82" aria-hidden="true" tabindex="-1"></a>    <span class="at">guide  =</span> <span class="st">"none"</span></span>
+<span id="cb6-83"><a href="#cb6-83" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">+</span></span>
+<span id="cb6-84"><a href="#cb6-84" aria-hidden="true" tabindex="-1"></a>  <span class="fu">annotate</span>(<span class="st">"text"</span>, <span class="at">x =</span> <span class="fl">0.7</span>, <span class="at">y =</span> tau_ao <span class="sc">+</span> <span class="fl">0.04</span>, <span class="at">label =</span> <span class="st">"True τ = 0.5"</span>,</span>
+<span id="cb6-85"><a href="#cb6-85" aria-hidden="true" tabindex="-1"></a>           <span class="at">size =</span> <span class="fl">3.2</span>, <span class="at">hjust =</span> <span class="dv">0</span>) <span class="sc">+</span></span>
+<span id="cb6-86"><a href="#cb6-86" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="cn">NULL</span>, <span class="at">y =</span> <span class="st">"Estimate"</span>,</span>
+<span id="cb6-87"><a href="#cb6-87" aria-hidden="true" tabindex="-1"></a>       <span class="at">title =</span> <span class="st">"C. Estimator comparison"</span>) <span class="ot">-&gt;</span> pC4</span>
+<span id="cb6-88"><a href="#cb6-88" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-89"><a href="#cb6-89" aria-hidden="true" tabindex="-1"></a>(pA4 <span class="sc">|</span> pB4 <span class="sc">|</span> pC4) <span class="sc">+</span></span>
+<span id="cb6-90"><a href="#cb6-90" aria-hidden="true" tabindex="-1"></a>  <span class="fu">plot_annotation</span>(</span>
+<span id="cb6-91"><a href="#cb6-91" aria-hidden="true" tabindex="-1"></a>    <span class="at">title =</span> <span class="st">"Scenario 4: Always-On Treatment with Time-Varying Confounding"</span>,</span>
+<span id="cb6-92"><a href="#cb6-92" aria-hidden="true" tabindex="-1"></a>    <span class="at">subtitle =</span> <span class="fu">sprintf</span>(</span>
+<span id="cb6-93"><a href="#cb6-93" aria-hidden="true" tabindex="-1"></a>      <span class="st">"True τ = %.1f;   TWFE (no confounder control) = %.3f;   Oracle TWFE = %.3f"</span>,</span>
+<span id="cb6-94"><a href="#cb6-94" aria-hidden="true" tabindex="-1"></a>      tau_ao, beta_twfe_ao, beta_oracle_ao</span>
+<span id="cb6-95"><a href="#cb6-95" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb6-96"><a href="#cb6-96" aria-hidden="true" tabindex="-1"></a>  )</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="continuous-did-sim_files/figure-html/scenario4-1.png" class="img-fluid figure-img" width="960"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>The TWFE estimate is <strong>0.016</strong> — virtually zero — despite a true causal effect of 0.5. The confounding mechanism is visible in panels A and B. Panel A shows that the economic factor <span class="math inline">\(C_{it}\)</span> directly lowers mortality (better economy → better health), with a within-unit slope close to <span class="math inline">\(\delta = -2\)</span>. Panel B shows that when PM<span class="math inline">\(_{2.5}\)</span> is high (positive <span class="math inline">\(\tilde{D}_{it}\)</span>), mortality is also sometimes lower — because high PM<span class="math inline">\(_{2.5}\)</span> years are often high-<span class="math inline">\(C\)</span> years (economic booms drive both). The two effects nearly cancel: TWFE sees PM<span class="math inline">\(_{2.5}\)</span> increasing and mortality <em>not</em> increasing, and concludes (wrongly) that PM<span class="math inline">\(_{2.5}\)</span> has no effect.</p>
+<p>Crucially, this failure has nothing to do with the weighting problems in Scenarios 1–3. Parallel trends is irrelevant here: the “treatment” <span class="math inline">\(D_{it}\)</span> is always on. There is no pre-period against which to validate trends, and no binary “treated/untreated” state to validate. The problem is purely time-varying confounding — the same thing that drives within-unit PM<span class="math inline">\(_{2.5}\)</span> changes also directly drives health outcomes — and TWFE has no mechanism to separate these.</p>
+</section>
+</section>
+<section id="scenario-5-the-quasi-stayer-approach" class="level1">
+<h1>Scenario 5: The Quasi-Stayer Approach</h1>
+<section id="operationalizing-quasi-stayers-for-pm_2.5" class="level2">
+<h2 class="anchored" data-anchor-id="operationalizing-quasi-stayers-for-pm_2.5">Operationalizing “Quasi-Stayers” for PM<span class="math inline">\(_{2.5}\)</span></h2>
+<p>De Chaisemartin, D’Haultfoeuille &amp; Vazquez-Bare (2024) proposed an estimator for always-on continuous treatments built around the idea of <strong>stayers</strong> — units whose treatment doesn’t change between consecutive periods. Since no county has literally the same PM<span class="math inline">\(_{2.5}\)</span> in two consecutive years, the practical extension is <strong>quasi-stayers</strong>: counties whose year-to-year PM<span class="math inline">\(_{2.5}\)</span> change is small enough to be treated as effectively stable.</p>
+<p>The key idea: if a quasi-stayer’s PM<span class="math inline">\(_{2.5}\)</span> barely changed, its observed health-outcome change approximates the <em>counterfactual trend</em> — what would have happened to a switcher’s health had its PM<span class="math inline">\(_{2.5}\)</span> also not changed. Comparing switchers’ actual outcome changes to this counterfactual, normalized by the PM<span class="math inline">\(_{2.5}\)</span> change, yields an estimate of the causal response.</p>
+<p><strong>Threshold choice.</strong> “Small” requires a threshold <span class="math inline">\(\epsilon\)</span>. The cleanest approach is percentile-based: county-year <span class="math inline">\((i, t)\)</span> is a quasi-stayer if <span class="math inline">\(|\Delta D_{it}|\)</span> falls in the bottom <span class="math inline">\(q\)</span>-th percentile of the distribution of <span class="math inline">\(|\Delta D|\)</span> in year <span class="math inline">\(t\)</span>. This self-scales across years regardless of units or dispersion. For PM<span class="math inline">\(_{2.5}\)</span>, the bottom 20th percentile (<span class="math inline">\(q = 0.20\)</span>) means counties that changed their annual mean concentration by less than roughly 0.3–0.5 µg/m³ year-to-year.</p>
+</section>
+<section id="the-estimator" class="level2">
+<h2 class="anchored" data-anchor-id="the-estimator">The Estimator</h2>
+<p>For each consecutive period pair <span class="math inline">\((t-1,\, t)\)</span>:</p>
+<ol type="1">
+<li><strong>Classify</strong> county-years: quasi-stayer if <span class="math inline">\(|\Delta D_{it}| \leq \epsilon_t\)</span>; switcher otherwise.</li>
+<li><strong>Counterfactual model</strong>: fit <span class="math inline">\(\Delta Y \sim D_{i,t-1}\)</span> within quasi-stayers. The regressor <span class="math inline">\(D_{i,t-1}\)</span> is the <em>baseline dose</em> — conditioning on it implements de Chaisemartin’s parallel trends assumption <em>conditional on starting dose</em>.</li>
+<li><strong>Predict</strong> each switcher’s counterfactual <span class="math inline">\(\widehat{\Delta Y}^{cf}\)</span> from the quasi-stayer model evaluated at the switcher’s <span class="math inline">\(D_{i,t-1}\)</span>.</li>
+<li><strong>Causal response</strong> per switcher: <span class="math inline">\((\Delta Y_{it} - \widehat{\Delta Y}^{cf}_{it}) / \Delta D_{it}\)</span>.</li>
+<li><strong>Aggregate</strong> across switchers, weighting by <span class="math inline">\(|\Delta D_{it}|^2\)</span> (AOSS: average of switchers’ slopes): <span class="math display">\[\widehat{AOSS} = \frac{\sum_{i,t\,:\,\text{switcher}} (\Delta Y_{it} - \widehat{\Delta Y}^{cf}_{it})\cdot\Delta D_{it}}{\sum_{i,t\,:\,\text{switcher}} (\Delta D_{it})^2}\]</span></li>
+</ol>
+<p>The weighting by <span class="math inline">\(\Delta D_{it}^2\)</span> gives more influence to switchers with larger dose changes — those providing the strongest signal about the slope.</p>
+</section>
+<section id="why-quasi-stayers-are-less-biased-here" class="level2">
+<h2 class="anchored" data-anchor-id="why-quasi-stayers-are-less-biased-here">Why Quasi-Stayers Are Less Biased Here</h2>
+<p>In our DGP, PM<span class="math inline">\(_{2.5}\)</span> changes follow:</p>
+<p><span class="math display">\[\Delta D_{it} = \Delta C_{it} + \Delta u_{it}\]</span></p>
+<p>The exogenous noise <span class="math inline">\(u_{it}\)</span> is i.i.d., so <span class="math inline">\(\text{Var}(\Delta u) = 2\sigma_u^2 = 4.5\)</span>. The economic factor is highly persistent (<span class="math inline">\(\rho = 0.9\)</span>), so year-to-year changes in <span class="math inline">\(C\)</span> are small: <span class="math inline">\(\text{Var}(\Delta C) = 2\sigma_\eta^2/(1+\rho) \approx 0.52\)</span>. Roughly <strong>90% of year-to-year PM<span class="math inline">\(_{2.5}\)</span> variation is driven by the exogenous noise</strong>, even though the economic factor dominates the <em>level</em>.</p>
+<p>The quasi-stayer’s plim has the same structural form as TWFE, but the relevant variance ratio is now over first differences rather than levels:</p>
+<p><span class="math display">\[\text{plim}(\widehat{AOSS}) = \tau + \delta \cdot \underbrace{\frac{\text{Var}(\Delta C)}{\text{Var}(\Delta C) + \text{Var}(\Delta u)}}_{R^2_{qs} \approx 0.10} \approx 0.5 + (-2)(0.10) = 0.30\]</span></p>
+<p>The confounded share drops from <span class="math inline">\(R^2_C \approx 0.26\)</span> (levels, used by TWFE) to <span class="math inline">\(R^2_{qs} \approx 0.10\)</span> (changes, used by quasi-stayer) — a 60% reduction in bias — because the persistent economic factor contributes far less to year-to-year fluctuations than to long-run county levels.</p>
+</section>
+<section id="results-4" class="level2">
+<h2 class="anchored" data-anchor-id="results-4">Results</h2>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="co"># First differences from panel_ao</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>diffs_ao <span class="ot">&lt;-</span> panel_ao <span class="sc">%&gt;%</span></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">arrange</span>(unit, year) <span class="sc">%&gt;%</span></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(unit) <span class="sc">%&gt;%</span></span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>    <span class="at">dD    =</span> D <span class="sc">-</span> <span class="fu">lag</span>(D),</span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>    <span class="at">dY    =</span> Y <span class="sc">-</span> <span class="fu">lag</span>(Y),</span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>    <span class="at">dC    =</span> C <span class="sc">-</span> <span class="fu">lag</span>(C),   <span class="co"># latent; used to colour points, not in estimator</span></span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>    <span class="at">D_lag =</span> <span class="fu">lag</span>(D)</span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">%&gt;%</span></span>
+<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(<span class="sc">!</span><span class="fu">is.na</span>(dD)) <span class="sc">%&gt;%</span></span>
+<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ungroup</span>()</span>
+<span id="cb7-13"><a href="#cb7-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-14"><a href="#cb7-14" aria-hidden="true" tabindex="-1"></a><span class="co"># Quasi-stayer estimator</span></span>
+<span id="cb7-15"><a href="#cb7-15" aria-hidden="true" tabindex="-1"></a>qs_est <span class="ot">&lt;-</span> <span class="cf">function</span>(df, <span class="at">q =</span> <span class="fl">0.20</span>) {</span>
+<span id="cb7-16"><a href="#cb7-16" aria-hidden="true" tabindex="-1"></a>  df <span class="sc">%&gt;%</span></span>
+<span id="cb7-17"><a href="#cb7-17" aria-hidden="true" tabindex="-1"></a>    <span class="fu">group_by</span>(year) <span class="sc">%&gt;%</span></span>
+<span id="cb7-18"><a href="#cb7-18" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(</span>
+<span id="cb7-19"><a href="#cb7-19" aria-hidden="true" tabindex="-1"></a>      <span class="at">eps   =</span> <span class="fu">quantile</span>(<span class="fu">abs</span>(dD), q),</span>
+<span id="cb7-20"><a href="#cb7-20" aria-hidden="true" tabindex="-1"></a>      <span class="at">is_qs =</span> <span class="fu">abs</span>(dD) <span class="sc">&lt;=</span> eps</span>
+<span id="cb7-21"><a href="#cb7-21" aria-hidden="true" tabindex="-1"></a>    ) <span class="sc">%&gt;%</span></span>
+<span id="cb7-22"><a href="#cb7-22" aria-hidden="true" tabindex="-1"></a>    <span class="fu">group_modify</span>(<span class="cf">function</span>(d, ...) {</span>
+<span id="cb7-23"><a href="#cb7-23" aria-hidden="true" tabindex="-1"></a>      qs <span class="ot">&lt;-</span> <span class="fu">filter</span>(d,  is_qs)</span>
+<span id="cb7-24"><a href="#cb7-24" aria-hidden="true" tabindex="-1"></a>      sw <span class="ot">&lt;-</span> <span class="fu">filter</span>(d, <span class="sc">!</span>is_qs)</span>
+<span id="cb7-25"><a href="#cb7-25" aria-hidden="true" tabindex="-1"></a>      <span class="cf">if</span> (<span class="fu">nrow</span>(qs) <span class="sc">&lt;</span> <span class="dv">10</span> <span class="sc">|</span> <span class="fu">nrow</span>(sw) <span class="sc">&lt;</span> <span class="dv">10</span>) <span class="fu">return</span>(<span class="fu">tibble</span>(<span class="at">est =</span> <span class="cn">NA_real_</span>))</span>
+<span id="cb7-26"><a href="#cb7-26" aria-hidden="true" tabindex="-1"></a>      cf <span class="ot">&lt;-</span> <span class="fu">lm</span>(dY <span class="sc">~</span> D_lag, <span class="at">data =</span> qs)</span>
+<span id="cb7-27"><a href="#cb7-27" aria-hidden="true" tabindex="-1"></a>      sw <span class="ot">&lt;-</span> <span class="fu">mutate</span>(sw, <span class="at">ce =</span> dY <span class="sc">-</span> <span class="fu">predict</span>(cf, <span class="at">newdata =</span> sw))</span>
+<span id="cb7-28"><a href="#cb7-28" aria-hidden="true" tabindex="-1"></a>      <span class="fu">tibble</span>(<span class="at">est =</span> <span class="fu">sum</span>(sw<span class="sc">$</span>ce <span class="sc">*</span> sw<span class="sc">$</span>dD) <span class="sc">/</span> <span class="fu">sum</span>(sw<span class="sc">$</span>dD<span class="sc">^</span><span class="dv">2</span>))</span>
+<span id="cb7-29"><a href="#cb7-29" aria-hidden="true" tabindex="-1"></a>    }) <span class="sc">%&gt;%</span></span>
+<span id="cb7-30"><a href="#cb7-30" aria-hidden="true" tabindex="-1"></a>    <span class="fu">pull</span>(est) <span class="sc">%&gt;%</span></span>
+<span id="cb7-31"><a href="#cb7-31" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mean</span>(<span class="at">na.rm =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb7-32"><a href="#cb7-32" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb7-33"><a href="#cb7-33" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-34"><a href="#cb7-34" aria-hidden="true" tabindex="-1"></a>beta_qs <span class="ot">&lt;-</span> <span class="fu">qs_est</span>(diffs_ao, <span class="at">q =</span> <span class="fl">0.20</span>)</span>
+<span id="cb7-35"><a href="#cb7-35" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-36"><a href="#cb7-36" aria-hidden="true" tabindex="-1"></a><span class="co"># Mark quasi-stayer status for a single year (for plotting)</span></span>
+<span id="cb7-37"><a href="#cb7-37" aria-hidden="true" tabindex="-1"></a>yr_plot <span class="ot">&lt;-</span> <span class="dv">5</span>L   <span class="co"># pick one representative year-pair</span></span>
+<span id="cb7-38"><a href="#cb7-38" aria-hidden="true" tabindex="-1"></a>diffs_yr <span class="ot">&lt;-</span> diffs_ao <span class="sc">%&gt;%</span></span>
+<span id="cb7-39"><a href="#cb7-39" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(year <span class="sc">==</span> yr_plot) <span class="sc">%&gt;%</span></span>
+<span id="cb7-40"><a href="#cb7-40" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb7-41"><a href="#cb7-41" aria-hidden="true" tabindex="-1"></a>    <span class="at">eps   =</span> <span class="fu">quantile</span>(<span class="fu">abs</span>(dD), <span class="fl">0.20</span>),</span>
+<span id="cb7-42"><a href="#cb7-42" aria-hidden="true" tabindex="-1"></a>    <span class="at">is_qs =</span> <span class="fu">abs</span>(dD) <span class="sc">&lt;=</span> eps</span>
+<span id="cb7-43"><a href="#cb7-43" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb7-44"><a href="#cb7-44" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-45"><a href="#cb7-45" aria-hidden="true" tabindex="-1"></a><span class="co"># Panel A: ΔD vs ΔY scatter with QS/switcher colouring</span></span>
+<span id="cb7-46"><a href="#cb7-46" aria-hidden="true" tabindex="-1"></a>pA5 <span class="ot">&lt;-</span> diffs_yr <span class="sc">%&gt;%</span></span>
+<span id="cb7-47"><a href="#cb7-47" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>(<span class="fu">aes</span>(<span class="at">x =</span> dD, <span class="at">y =</span> dY, <span class="at">color =</span> is_qs)) <span class="sc">+</span></span>
+<span id="cb7-48"><a href="#cb7-48" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_point</span>(<span class="at">alpha =</span> <span class="fl">0.35</span>, <span class="at">size =</span> <span class="fl">0.9</span>) <span class="sc">+</span></span>
+<span id="cb7-49"><a href="#cb7-49" aria-hidden="true" tabindex="-1"></a>  <span class="co"># QS regression line: the counterfactual trend</span></span>
+<span id="cb7-50"><a href="#cb7-50" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_smooth</span>(<span class="at">data =</span> <span class="fu">filter</span>(diffs_yr,  is_qs), <span class="at">method =</span> <span class="st">"lm"</span>,</span>
+<span id="cb7-51"><a href="#cb7-51" aria-hidden="true" tabindex="-1"></a>              <span class="fu">aes</span>(<span class="at">x =</span> dD, <span class="at">y =</span> dY), <span class="at">inherit.aes =</span> <span class="cn">FALSE</span>,</span>
+<span id="cb7-52"><a href="#cb7-52" aria-hidden="true" tabindex="-1"></a>              <span class="at">color =</span> <span class="st">"grey30"</span>, <span class="at">se =</span> <span class="cn">TRUE</span>, <span class="at">linewidth =</span> <span class="fl">1.1</span>,</span>
+<span id="cb7-53"><a href="#cb7-53" aria-hidden="true" tabindex="-1"></a>              <span class="at">fill =</span> <span class="st">"grey70"</span>, <span class="at">alpha =</span> <span class="fl">0.3</span>) <span class="sc">+</span></span>
+<span id="cb7-54"><a href="#cb7-54" aria-hidden="true" tabindex="-1"></a>  <span class="co"># TWFE slope (biased)</span></span>
+<span id="cb7-55"><a href="#cb7-55" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_smooth</span>(<span class="at">method =</span> <span class="st">"lm"</span>, <span class="at">color =</span> <span class="st">"#E41A1C"</span>, <span class="at">se =</span> <span class="cn">FALSE</span>,</span>
+<span id="cb7-56"><a href="#cb7-56" aria-hidden="true" tabindex="-1"></a>              <span class="at">linewidth =</span> <span class="fl">1.1</span>, <span class="at">linetype =</span> <span class="st">"dashed"</span>) <span class="sc">+</span></span>
+<span id="cb7-57"><a href="#cb7-57" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_color_manual</span>(</span>
+<span id="cb7-58"><a href="#cb7-58" aria-hidden="true" tabindex="-1"></a>    <span class="at">values =</span> <span class="fu">c</span>(<span class="st">"TRUE"</span> <span class="ot">=</span> <span class="st">"grey50"</span>, <span class="st">"FALSE"</span> <span class="ot">=</span> <span class="st">"#377EB8"</span>),</span>
+<span id="cb7-59"><a href="#cb7-59" aria-hidden="true" tabindex="-1"></a>    <span class="at">labels =</span> <span class="fu">c</span>(<span class="st">"TRUE"</span> <span class="ot">=</span> <span class="st">"Quasi-stayer (|ΔD| ≤ ε)"</span>, <span class="st">"FALSE"</span> <span class="ot">=</span> <span class="st">"Switcher (|ΔD| &gt; ε)"</span>),</span>
+<span id="cb7-60"><a href="#cb7-60" aria-hidden="true" tabindex="-1"></a>    <span class="at">name   =</span> <span class="st">""</span></span>
+<span id="cb7-61"><a href="#cb7-61" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">+</span></span>
+<span id="cb7-62"><a href="#cb7-62" aria-hidden="true" tabindex="-1"></a>  <span class="fu">annotate</span>(<span class="st">"text"</span>, <span class="at">x =</span> <span class="sc">-</span><span class="dv">5</span>, <span class="at">y =</span> <span class="dv">14</span>,</span>
+<span id="cb7-63"><a href="#cb7-63" aria-hidden="true" tabindex="-1"></a>           <span class="at">label =</span> <span class="st">"QS trend</span><span class="sc">\n</span><span class="st">(counterfactual)"</span>,</span>
+<span id="cb7-64"><a href="#cb7-64" aria-hidden="true" tabindex="-1"></a>           <span class="at">color =</span> <span class="st">"grey30"</span>, <span class="at">size =</span> <span class="dv">3</span>) <span class="sc">+</span></span>
+<span id="cb7-65"><a href="#cb7-65" aria-hidden="true" tabindex="-1"></a>  <span class="fu">annotate</span>(<span class="st">"text"</span>, <span class="at">x =</span> <span class="dv">3</span>, <span class="at">y =</span> <span class="sc">-</span><span class="dv">10</span>,</span>
+<span id="cb7-66"><a href="#cb7-66" aria-hidden="true" tabindex="-1"></a>           <span class="at">label =</span> <span class="fu">sprintf</span>(<span class="st">"TWFE slope = %.3f"</span>, beta_twfe_ao),</span>
+<span id="cb7-67"><a href="#cb7-67" aria-hidden="true" tabindex="-1"></a>           <span class="at">color =</span> <span class="st">"#E41A1C"</span>, <span class="at">size =</span> <span class="dv">3</span>) <span class="sc">+</span></span>
+<span id="cb7-68"><a href="#cb7-68" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"ΔD (PM₂.₅ change, µg/m³)"</span>,</span>
+<span id="cb7-69"><a href="#cb7-69" aria-hidden="true" tabindex="-1"></a>       <span class="at">y =</span> <span class="st">"ΔY (mortality change)"</span>,</span>
+<span id="cb7-70"><a href="#cb7-70" aria-hidden="true" tabindex="-1"></a>       <span class="at">title =</span> <span class="st">"A. QS counterfactual vs TWFE slope"</span>,</span>
+<span id="cb7-71"><a href="#cb7-71" aria-hidden="true" tabindex="-1"></a>       <span class="at">subtitle =</span> <span class="st">"Grey line = quasi-stayer counterfactual trend (near-flat)"</span>) <span class="sc">+</span></span>
+<span id="cb7-72"><a href="#cb7-72" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(<span class="at">legend.position =</span> <span class="st">"bottom"</span>,</span>
+<span id="cb7-73"><a href="#cb7-73" aria-hidden="true" tabindex="-1"></a>        <span class="at">legend.text =</span> <span class="fu">element_text</span>(<span class="at">size =</span> <span class="dv">9</span>))</span>
+<span id="cb7-74"><a href="#cb7-74" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-75"><a href="#cb7-75" aria-hidden="true" tabindex="-1"></a><span class="co"># Panel B: Sensitivity to threshold q</span></span>
+<span id="cb7-76"><a href="#cb7-76" aria-hidden="true" tabindex="-1"></a>sens_df <span class="ot">&lt;-</span> <span class="fu">tibble</span>(</span>
+<span id="cb7-77"><a href="#cb7-77" aria-hidden="true" tabindex="-1"></a>  <span class="at">q   =</span> <span class="fu">seq</span>(<span class="fl">0.10</span>, <span class="fl">0.40</span>, <span class="at">by =</span> <span class="fl">0.05</span>),</span>
+<span id="cb7-78"><a href="#cb7-78" aria-hidden="true" tabindex="-1"></a>  <span class="at">est =</span> <span class="fu">map_dbl</span>(q, <span class="sc">~</span><span class="fu">qs_est</span>(diffs_ao, <span class="at">q =</span> .x))</span>
+<span id="cb7-79"><a href="#cb7-79" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb7-80"><a href="#cb7-80" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-81"><a href="#cb7-81" aria-hidden="true" tabindex="-1"></a>pB5 <span class="ot">&lt;-</span> sens_df <span class="sc">%&gt;%</span></span>
+<span id="cb7-82"><a href="#cb7-82" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>(<span class="fu">aes</span>(<span class="at">x =</span> q, <span class="at">y =</span> est)) <span class="sc">+</span></span>
+<span id="cb7-83"><a href="#cb7-83" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>(<span class="at">color =</span> <span class="st">"#377EB8"</span>, <span class="at">linewidth =</span> <span class="fl">1.1</span>) <span class="sc">+</span></span>
+<span id="cb7-84"><a href="#cb7-84" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_point</span>(<span class="at">color =</span> <span class="st">"#377EB8"</span>, <span class="at">size =</span> <span class="dv">2</span>) <span class="sc">+</span></span>
+<span id="cb7-85"><a href="#cb7-85" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_hline</span>(<span class="at">yintercept =</span> tau_ao,     <span class="at">linetype =</span> <span class="st">"dashed"</span>, <span class="at">color =</span> <span class="st">"grey30"</span>) <span class="sc">+</span></span>
+<span id="cb7-86"><a href="#cb7-86" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_hline</span>(<span class="at">yintercept =</span> beta_twfe_ao, <span class="at">linetype =</span> <span class="st">"dotted"</span>, <span class="at">color =</span> <span class="st">"#E41A1C"</span>,</span>
+<span id="cb7-87"><a href="#cb7-87" aria-hidden="true" tabindex="-1"></a>             <span class="at">linewidth =</span> <span class="fl">0.8</span>) <span class="sc">+</span></span>
+<span id="cb7-88"><a href="#cb7-88" aria-hidden="true" tabindex="-1"></a>  <span class="fu">annotate</span>(<span class="st">"text"</span>, <span class="at">x =</span> <span class="fl">0.39</span>, <span class="at">y =</span> tau_ao <span class="sc">+</span> <span class="fl">0.02</span>,</span>
+<span id="cb7-89"><a href="#cb7-89" aria-hidden="true" tabindex="-1"></a>           <span class="at">label =</span> <span class="st">"True τ = 0.5"</span>, <span class="at">size =</span> <span class="dv">3</span>, <span class="at">hjust =</span> <span class="dv">1</span>, <span class="at">color =</span> <span class="st">"grey30"</span>) <span class="sc">+</span></span>
+<span id="cb7-90"><a href="#cb7-90" aria-hidden="true" tabindex="-1"></a>  <span class="fu">annotate</span>(<span class="st">"text"</span>, <span class="at">x =</span> <span class="fl">0.39</span>, <span class="at">y =</span> beta_twfe_ao <span class="sc">-</span> <span class="fl">0.03</span>,</span>
+<span id="cb7-91"><a href="#cb7-91" aria-hidden="true" tabindex="-1"></a>           <span class="at">label =</span> <span class="fu">sprintf</span>(<span class="st">"TWFE = %.3f"</span>, beta_twfe_ao),</span>
+<span id="cb7-92"><a href="#cb7-92" aria-hidden="true" tabindex="-1"></a>           <span class="at">size =</span> <span class="dv">3</span>, <span class="at">hjust =</span> <span class="dv">1</span>, <span class="at">color =</span> <span class="st">"#E41A1C"</span>) <span class="sc">+</span></span>
+<span id="cb7-93"><a href="#cb7-93" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_x_continuous</span>(<span class="at">labels =</span> scales<span class="sc">::</span>percent) <span class="sc">+</span></span>
+<span id="cb7-94"><a href="#cb7-94" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Quasi-stayer threshold (percentile of |ΔD|)"</span>,</span>
+<span id="cb7-95"><a href="#cb7-95" aria-hidden="true" tabindex="-1"></a>       <span class="at">y =</span> <span class="st">"QS estimate"</span>,</span>
+<span id="cb7-96"><a href="#cb7-96" aria-hidden="true" tabindex="-1"></a>       <span class="at">title =</span> <span class="st">"B. Sensitivity to threshold choice"</span>,</span>
+<span id="cb7-97"><a href="#cb7-97" aria-hidden="true" tabindex="-1"></a>       <span class="at">subtitle =</span> <span class="st">"Estimate stable across q — not an artefact of the threshold"</span>)</span>
+<span id="cb7-98"><a href="#cb7-98" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-99"><a href="#cb7-99" aria-hidden="true" tabindex="-1"></a><span class="co"># Panel C: Side-by-side comparison of all estimators for this DGP</span></span>
+<span id="cb7-100"><a href="#cb7-100" aria-hidden="true" tabindex="-1"></a><span class="fu">tibble</span>(</span>
+<span id="cb7-101"><a href="#cb7-101" aria-hidden="true" tabindex="-1"></a>  <span class="at">Estimator =</span> <span class="fu">factor</span>(</span>
+<span id="cb7-102"><a href="#cb7-102" aria-hidden="true" tabindex="-1"></a>    <span class="fu">c</span>(<span class="st">"True τ"</span>, <span class="st">"Oracle TWFE</span><span class="sc">\n</span><span class="st">(C known)"</span>, <span class="st">"Quasi-stayer</span><span class="sc">\n</span><span class="st">(q = 0.20)"</span>, <span class="st">"TWFE</span><span class="sc">\n</span><span class="st">(C omitted)"</span>),</span>
+<span id="cb7-103"><a href="#cb7-103" aria-hidden="true" tabindex="-1"></a>    <span class="at">levels =</span> <span class="fu">c</span>(<span class="st">"True τ"</span>, <span class="st">"Oracle TWFE</span><span class="sc">\n</span><span class="st">(C known)"</span>, <span class="st">"Quasi-stayer</span><span class="sc">\n</span><span class="st">(q = 0.20)"</span>, <span class="st">"TWFE</span><span class="sc">\n</span><span class="st">(C omitted)"</span>)</span>
+<span id="cb7-104"><a href="#cb7-104" aria-hidden="true" tabindex="-1"></a>  ),</span>
+<span id="cb7-105"><a href="#cb7-105" aria-hidden="true" tabindex="-1"></a>  <span class="at">Estimate =</span> <span class="fu">c</span>(tau_ao, beta_oracle_ao, beta_qs, beta_twfe_ao),</span>
+<span id="cb7-106"><a href="#cb7-106" aria-hidden="true" tabindex="-1"></a>  <span class="at">Type =</span> <span class="fu">c</span>(<span class="st">"True"</span>, <span class="st">"Oracle"</span>, <span class="st">"QS"</span>, <span class="st">"Biased"</span>)</span>
+<span id="cb7-107"><a href="#cb7-107" aria-hidden="true" tabindex="-1"></a>) <span class="sc">%&gt;%</span></span>
+<span id="cb7-108"><a href="#cb7-108" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>(<span class="fu">aes</span>(<span class="at">x =</span> Estimator, <span class="at">y =</span> Estimate, <span class="at">fill =</span> Type)) <span class="sc">+</span></span>
+<span id="cb7-109"><a href="#cb7-109" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_col</span>(<span class="at">width =</span> <span class="fl">0.55</span>) <span class="sc">+</span></span>
+<span id="cb7-110"><a href="#cb7-110" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_hline</span>(<span class="at">yintercept =</span> tau_ao, <span class="at">linetype =</span> <span class="st">"dashed"</span>, <span class="at">linewidth =</span> <span class="fl">0.8</span>) <span class="sc">+</span></span>
+<span id="cb7-111"><a href="#cb7-111" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_hline</span>(<span class="at">yintercept =</span> <span class="dv">0</span>, <span class="at">linewidth =</span> <span class="fl">0.4</span>) <span class="sc">+</span></span>
+<span id="cb7-112"><a href="#cb7-112" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_fill_manual</span>(</span>
+<span id="cb7-113"><a href="#cb7-113" aria-hidden="true" tabindex="-1"></a>    <span class="at">values =</span> <span class="fu">c</span>(<span class="st">"True"</span> <span class="ot">=</span> <span class="st">"#377EB8"</span>, <span class="st">"Oracle"</span> <span class="ot">=</span> <span class="st">"#4DAF4A"</span>,</span>
+<span id="cb7-114"><a href="#cb7-114" aria-hidden="true" tabindex="-1"></a>               <span class="st">"QS"</span> <span class="ot">=</span> <span class="st">"#FF7F00"</span>, <span class="st">"Biased"</span> <span class="ot">=</span> <span class="st">"#E41A1C"</span>),</span>
+<span id="cb7-115"><a href="#cb7-115" aria-hidden="true" tabindex="-1"></a>    <span class="at">guide =</span> <span class="st">"none"</span></span>
+<span id="cb7-116"><a href="#cb7-116" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">+</span></span>
+<span id="cb7-117"><a href="#cb7-117" aria-hidden="true" tabindex="-1"></a>  <span class="fu">annotate</span>(<span class="st">"text"</span>, <span class="at">x =</span> <span class="fl">0.7</span>, <span class="at">y =</span> tau_ao <span class="sc">+</span> <span class="fl">0.03</span>,</span>
+<span id="cb7-118"><a href="#cb7-118" aria-hidden="true" tabindex="-1"></a>           <span class="at">label =</span> <span class="st">"True τ = 0.5"</span>, <span class="at">size =</span> <span class="dv">3</span>, <span class="at">hjust =</span> <span class="dv">0</span>) <span class="sc">+</span></span>
+<span id="cb7-119"><a href="#cb7-119" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="cn">NULL</span>, <span class="at">y =</span> <span class="st">"Estimate"</span>,</span>
+<span id="cb7-120"><a href="#cb7-120" aria-hidden="true" tabindex="-1"></a>       <span class="at">title =</span> <span class="st">"C. All estimators compared"</span>) <span class="ot">-&gt;</span> pC5</span>
+<span id="cb7-121"><a href="#cb7-121" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-122"><a href="#cb7-122" aria-hidden="true" tabindex="-1"></a>(pA5 <span class="sc">|</span> pB5 <span class="sc">|</span> pC5) <span class="sc">+</span></span>
+<span id="cb7-123"><a href="#cb7-123" aria-hidden="true" tabindex="-1"></a>  <span class="fu">plot_annotation</span>(</span>
+<span id="cb7-124"><a href="#cb7-124" aria-hidden="true" tabindex="-1"></a>    <span class="at">title =</span> <span class="st">"Scenario 5: Quasi-Stayer Estimator"</span>,</span>
+<span id="cb7-125"><a href="#cb7-125" aria-hidden="true" tabindex="-1"></a>    <span class="at">subtitle =</span> <span class="fu">sprintf</span>(</span>
+<span id="cb7-126"><a href="#cb7-126" aria-hidden="true" tabindex="-1"></a>      <span class="st">"True τ = %.1f;   TWFE = %.3f;   Quasi-stayer (q=0.20) = %.3f;   Oracle = %.3f"</span>,</span>
+<span id="cb7-127"><a href="#cb7-127" aria-hidden="true" tabindex="-1"></a>      tau_ao, beta_twfe_ao, beta_qs, beta_oracle_ao</span>
+<span id="cb7-128"><a href="#cb7-128" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb7-129"><a href="#cb7-129" aria-hidden="true" tabindex="-1"></a>  )</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="continuous-did-sim_files/figure-html/scenario5-1.png" class="img-fluid figure-img" width="960"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>The quasi-stayer estimate is <strong>0.29</strong> — substantially closer to the truth (0.5) than TWFE (0.016), though still biased. The bias ratio is about 0.43 — quasi-stayer retains about 43% of TWFE’s bias. Panel A shows why: the quasi-stayer trend line (grey, estimated within counties with near-zero PM<span class="math inline">\(_{2.5}\)</span> changes) is nearly flat and provides a valid counterfactual trend for switchers; by subtracting it before dividing by <span class="math inline">\(\Delta D\)</span>, the quasi-stayer estimator partially decouples the PM<span class="math inline">\(_{2.5}\)</span> effect from the economic confound.</p>
+<p>Panel B shows that the estimate is <strong>stable across all threshold choices</strong> — from the 10th to 40th percentile the estimate ranges only from 0.271 to 0.298. This stability is reassuring: the result is not an artefact of a particular cutoff.</p>
+</section>
+<section id="limits-of-the-quasi-stayer-approach" class="level2">
+<h2 class="anchored" data-anchor-id="limits-of-the-quasi-stayer-approach">Limits of the Quasi-Stayer Approach</h2>
+<p>The quasi-stayer estimator reduces but does not eliminate the confounding bias. Its residual bias (<span class="math inline">\(\approx\)</span> 0.21) reflects the share of year-to-year PM<span class="math inline">\(_{2.5}\)</span> variation that is still driven by the economic factor (<span class="math inline">\(R^2_{qs} \approx 0.10\)</span>). More importantly, the identifying assumption is:</p>
+<blockquote class="blockquote">
+<p><em>Counties with similar baseline PM<span class="math inline">\(_{2.5}\)</span> whose annual concentration barely changed would have experienced the same mortality trend as counties whose concentration changed substantially, had those counties also not changed.</em></p>
+</blockquote>
+<p>This fails whenever the factor that caused the PM<span class="math inline">\(_{2.5}\)</span> change is itself directly affecting health. In our DGP the economic factor drives both PM<span class="math inline">\(_{2.5}\)</span> changes and health, so the assumption is technically violated — only the high persistence of <span class="math inline">\(C\)</span> (which reduces <span class="math inline">\(R^2_{qs}\)</span> relative to <span class="math inline">\(R^2_C\)</span>) limits the damage. In settings where PM<span class="math inline">\(_{2.5}\)</span> changes are driven primarily by transient weather shocks (which also directly affect health), the quasi-stayer may perform no better than TWFE.</p>
+<p>The assumption is, however, <strong>partially testable</strong>: using a period earlier than <span class="math inline">\(t-1\)</span> as a placebo, one can check whether quasi-stayers and switchers had differential outcome trends even in a period when PM<span class="math inline">\(_{2.5}\)</span> did not change. If the identifying assumption holds, the quasi-stayer estimator should return approximately zero for placebo treatment changes.</p>
+</section>
+</section>
+<section id="summary" class="level1">
+<h1>Summary</h1>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="fu">tibble</span>(</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">Scenario        =</span> <span class="fu">c</span>(<span class="st">"1: Linear τ(d) = 0.5d"</span>,</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>                      <span class="st">"2: Concave τ(d) = 6(√(d/5)−1)"</span>,</span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>                      <span class="st">"3: Declining τ(d) = 20exp(−d/4)"</span>,</span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>                      <span class="st">"4: Always-on + econ. confounder"</span>,</span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>                      <span class="st">"5: Quasi-stayer (q = 0.20)"</span>),</span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">Setting         =</span> <span class="fu">c</span>(<span class="fu">rep</span>(<span class="st">"Differential exposure (Post exists)"</span>, <span class="dv">3</span>),</span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a>                      <span class="fu">rep</span>(<span class="st">"Always-on (no Post)"</span>, <span class="dv">2</span>)),</span>
+<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a>  <span class="st">`</span><span class="at">PT holds?</span><span class="st">`</span>     <span class="ot">=</span> <span class="fu">c</span>(<span class="st">"Yes"</span>, <span class="st">"Yes"</span>, <span class="st">"Yes"</span>, <span class="st">"No"</span>, <span class="st">"Partially"</span>),</span>
+<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a>  <span class="st">`</span><span class="at">TWFE</span><span class="st">`</span>          <span class="ot">=</span> <span class="fu">c</span>(<span class="fu">round</span>(beta1, <span class="dv">2</span>), <span class="fu">round</span>(beta2, <span class="dv">2</span>), <span class="fu">round</span>(beta3, <span class="dv">2</span>),</span>
+<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a>                      <span class="fu">round</span>(beta_twfe_ao, <span class="dv">2</span>), <span class="fu">round</span>(beta_twfe_ao, <span class="dv">2</span>)),</span>
+<span id="cb8-12"><a href="#cb8-12" aria-hidden="true" tabindex="-1"></a>  <span class="st">`</span><span class="at">Alt. estimate</span><span class="st">`</span> <span class="ot">=</span> <span class="fu">c</span>(<span class="fu">rep</span>(<span class="st">"—"</span>, <span class="dv">3</span>), <span class="fu">round</span>(beta_oracle_ao, <span class="dv">2</span>), <span class="fu">round</span>(beta_qs, <span class="dv">2</span>)),</span>
+<span id="cb8-13"><a href="#cb8-13" aria-hidden="true" tabindex="-1"></a>  <span class="st">`</span><span class="at">True</span><span class="st">`</span>          <span class="ot">=</span> <span class="fu">c</span>(<span class="fu">round</span>(att1_avg, <span class="dv">2</span>), <span class="fu">round</span>(att2_avg, <span class="dv">2</span>), <span class="fu">round</span>(att3_avg, <span class="dv">2</span>),</span>
+<span id="cb8-14"><a href="#cb8-14" aria-hidden="true" tabindex="-1"></a>                      tau_ao, tau_ao),</span>
+<span id="cb8-15"><a href="#cb8-15" aria-hidden="true" tabindex="-1"></a>  <span class="st">`</span><span class="at">Failure mode</span><span class="st">`</span>  <span class="ot">=</span> <span class="fu">c</span>(<span class="st">"Slope ≠ level effect"</span>,</span>
+<span id="cb8-16"><a href="#cb8-16" aria-hidden="true" tabindex="-1"></a>                      <span class="st">"Variance-weighting underestimates concave ATT"</span>,</span>
+<span id="cb8-17"><a href="#cb8-17" aria-hidden="true" tabindex="-1"></a>                      <span class="st">"Wrong sign (declining ATT × bimodal D)"</span>,</span>
+<span id="cb8-18"><a href="#cb8-18" aria-hidden="true" tabindex="-1"></a>                      <span class="st">"Time-varying confounding cancels true effect"</span>,</span>
+<span id="cb8-19"><a href="#cb8-19" aria-hidden="true" tabindex="-1"></a>                      <span class="st">"Bias reduced ~60% vs TWFE; not eliminated"</span>)</span>
+<span id="cb8-20"><a href="#cb8-20" aria-hidden="true" tabindex="-1"></a>) <span class="sc">%&gt;%</span></span>
+<span id="cb8-21"><a href="#cb8-21" aria-hidden="true" tabindex="-1"></a>  <span class="fu">kbl</span>(<span class="at">align =</span> <span class="st">"lllrrrl"</span>,</span>
+<span id="cb8-22"><a href="#cb8-22" aria-hidden="true" tabindex="-1"></a>      <span class="at">col.names =</span> <span class="fu">c</span>(<span class="st">"Scenario"</span>, <span class="st">"Setting"</span>, <span class="st">"PT holds?"</span>, <span class="st">"TWFE"</span>,</span>
+<span id="cb8-23"><a href="#cb8-23" aria-hidden="true" tabindex="-1"></a>                    <span class="st">"Alt."</span>, <span class="st">"True"</span>, <span class="st">"Failure mode"</span>)) <span class="sc">%&gt;%</span></span>
+<span id="cb8-24"><a href="#cb8-24" aria-hidden="true" tabindex="-1"></a>  <span class="fu">kable_styling</span>(<span class="at">bootstrap_options =</span> <span class="fu">c</span>(<span class="st">"striped"</span>, <span class="st">"hover"</span>), <span class="at">full_width =</span> <span class="cn">FALSE</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb8-25"><a href="#cb8-25" aria-hidden="true" tabindex="-1"></a>  <span class="fu">row_spec</span>(<span class="dv">3</span>, <span class="at">bold =</span> <span class="cn">TRUE</span>, <span class="at">color =</span> <span class="st">"white"</span>, <span class="at">background =</span> <span class="st">"#C0392B"</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb8-26"><a href="#cb8-26" aria-hidden="true" tabindex="-1"></a>  <span class="fu">row_spec</span>(<span class="dv">4</span>, <span class="at">bold =</span> <span class="cn">TRUE</span>, <span class="at">color =</span> <span class="st">"white"</span>, <span class="at">background =</span> <span class="st">"#8B0000"</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb8-27"><a href="#cb8-27" aria-hidden="true" tabindex="-1"></a>  <span class="fu">row_spec</span>(<span class="dv">5</span>, <span class="at">bold =</span> <span class="cn">TRUE</span>, <span class="at">background =</span> <span class="st">"#FFF3CD"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output-display">
+<table class="table table-striped table-hover caption-top table-sm small">
+<thead>
+<tr class="header">
+<th style="text-align: left;" data-quarto-table-cell-role="th">Scenario</th>
+<th style="text-align: left;" data-quarto-table-cell-role="th">Setting</th>
+<th style="text-align: left;" data-quarto-table-cell-role="th">PT holds?</th>
+<th style="text-align: right;" data-quarto-table-cell-role="th">TWFE</th>
+<th style="text-align: right;" data-quarto-table-cell-role="th">Alt.</th>
+<th style="text-align: right;" data-quarto-table-cell-role="th">True</th>
+<th style="text-align: left;" data-quarto-table-cell-role="th">Failure mode</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">1: Linear τ(d) = 0.5d</td>
+<td style="text-align: left;">Differential exposure (Post exists)</td>
+<td style="text-align: left;">Yes</td>
+<td style="text-align: right;">0.48</td>
+<td style="text-align: right;">—</td>
+<td style="text-align: right;">6.19</td>
+<td style="text-align: left;">Slope ≠ level effect</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">2: Concave τ(d) = 6(√(d/5)−1)</td>
+<td style="text-align: left;">Differential exposure (Post exists)</td>
+<td style="text-align: left;">Yes</td>
+<td style="text-align: right;">0.39</td>
+<td style="text-align: right;">—</td>
+<td style="text-align: right;">3.20</td>
+<td style="text-align: left;">Variance-weighting underestimates concave ATT</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left; font-weight: bold; color: white !important; background-color: rgba(192, 57, 43, 255) !important;">3: Declining τ(d) = 20exp(−d/4)</td>
+<td style="text-align: left; font-weight: bold; color: white !important; background-color: rgba(192, 57, 43, 255) !important;">Differential exposure (Post exists)</td>
+<td style="text-align: left; font-weight: bold; color: white !important; background-color: rgba(192, 57, 43, 255) !important;">Yes</td>
+<td style="text-align: right; font-weight: bold; color: white !important; background-color: rgba(192, 57, 43, 255) !important;">-0.48</td>
+<td style="text-align: right; font-weight: bold; color: white !important; background-color: rgba(192, 57, 43, 255) !important;">—</td>
+<td style="text-align: right; font-weight: bold; color: white !important; background-color: rgba(192, 57, 43, 255) !important;">3.12</td>
+<td style="text-align: left; font-weight: bold; color: white !important; background-color: rgba(192, 57, 43, 255) !important;">Wrong sign (declining ATT × bimodal D)</td>
+</tr>
+<tr class="even">
+<td style="text-align: left; font-weight: bold; color: white !important; background-color: rgba(139, 0, 0, 255) !important;">4: Always-on + econ. confounder</td>
+<td style="text-align: left; font-weight: bold; color: white !important; background-color: rgba(139, 0, 0, 255) !important;">Always-on (no Post)</td>
+<td style="text-align: left; font-weight: bold; color: white !important; background-color: rgba(139, 0, 0, 255) !important;">No</td>
+<td style="text-align: right; font-weight: bold; color: white !important; background-color: rgba(139, 0, 0, 255) !important;">0.02</td>
+<td style="text-align: right; font-weight: bold; color: white !important; background-color: rgba(139, 0, 0, 255) !important;">0.5</td>
+<td style="text-align: right; font-weight: bold; color: white !important; background-color: rgba(139, 0, 0, 255) !important;">0.50</td>
+<td style="text-align: left; font-weight: bold; color: white !important; background-color: rgba(139, 0, 0, 255) !important;">Time-varying confounding cancels true effect</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left; font-weight: bold; background-color: rgba(255, 243, 205, 255) !important;">5: Quasi-stayer (q = 0.20)</td>
+<td style="text-align: left; font-weight: bold; background-color: rgba(255, 243, 205, 255) !important;">Always-on (no Post)</td>
+<td style="text-align: left; font-weight: bold; background-color: rgba(255, 243, 205, 255) !important;">Partially</td>
+<td style="text-align: right; font-weight: bold; background-color: rgba(255, 243, 205, 255) !important;">0.02</td>
+<td style="text-align: right; font-weight: bold; background-color: rgba(255, 243, 205, 255) !important;">0.29</td>
+<td style="text-align: right; font-weight: bold; background-color: rgba(255, 243, 205, 255) !important;">0.50</td>
+<td style="text-align: left; font-weight: bold; background-color: rgba(255, 243, 205, 255) !important;">Bias reduced ~60% vs TWFE; not eliminated</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<section id="what-twfe-is-and-isnt-doing" class="level2">
+<h2 class="anchored" data-anchor-id="what-twfe-is-and-isnt-doing">What TWFE Is (and Isn’t) Doing</h2>
+<p>Across Scenarios 1–3, parallel trends holds by construction. TWFE fails because of <em>what it estimates</em> rather than because of assumption violations. In the two-period differential exposure case:</p>
+<p><span class="math display">\[\hat\beta^{TWFE} \xrightarrow{p} \underbrace{\frac{\text{Cov}(D_i,\; \tau(D_i))}{\text{Var}(D_i)}}_{\text{what TWFE estimates}} \quad \neq \quad \underbrace{\mathbb{E}[\tau(D_i)]}_{\text{average ATT}}\]</span></p>
+<p>The numerator is the covariance between dose and dose-response — a slope, not a level. These two coincide only when <span class="math inline">\(\tau(d)\)</span> is linear in <span class="math inline">\(d\)</span>, and even then TWFE recovers the marginal causal response per unit of dose rather than the average level effect. When the dose-response is decreasing in dose (Scenario 3), the covariance is negative and TWFE reverses sign.</p>
+<p>In Scenarios 4–5 the failure mode is different: the “treatment” is always on, there is no untreated state, and the within-unit variation that TWFE exploits is contaminated by time-varying confounders. Parallel trends cannot be invoked or tested in the usual way, because there is no pre-treatment period to validate.</p>
+<p>Note that the Scenarios 1–3 pathologies arise with just <strong>two time periods</strong> — unlike staggered binary treatment problems, which require multiple periods. The problems are about the continuous treatment distribution and dose-response shape, not timing.</p>
+</section>
+<section id="implications" class="level2">
+<h2 class="anchored" data-anchor-id="implications">Implications</h2>
+<p><strong>First</strong>, TWFE with a continuous treatment in the differential exposure design implicitly runs a binary DiD: above-average-dose units as “treated,” below-average-dose as “control.” Whether this is scientifically appropriate depends on the dose-response shape — and there is no test that can reveal this without knowing the truth.</p>
+<p><strong>Second</strong>, in the always-on setting, TWFE uses within-unit year-to-year variation in PM<span class="math inline">\(_{2.5}\)</span>. Because this variation is driven partly by the same factors (weather, economic cycles) that also affect health outcomes, the identifying assumption is almost certainly violated. Pre-trend tests are not available to diagnose this.</p>
+<p><strong>Third</strong>, the quasi-stayer approach exploits a better-justified source of variation — counties with near-zero PM<span class="math inline">\(_{2.5}\)</span> changes as controls — and can reduce bias substantially when the confounder is persistent (moves slowly relative to year-to-year changes). But it is not a magic fix: if the confounder drives year-to-year PM<span class="math inline">\(_{2.5}\)</span> changes, quasi-stayer shares TWFE’s problem. The assumption is more transparent and partially testable via placebo pre-period regressions.</p>
+<p><strong>The honest bottom line</strong>: for ambient PM<span class="math inline">\(_{2.5}\)</span> health effect estimation, instrumental variable methods — wind direction, wildfire smoke plumes, regulatory nonattainment thresholds — remain the most defensible identification strategy. DiD-type methods (both standard TWFE and quasi-stayer variants) can be made to work under carefully defended parallel trends or quasi-stayer assumptions, but neither assumption is likely to hold without question for a pollutant whose variation is so tightly linked to the same economic and meteorological forces that determine population health.</p>
+</section>
+</section>
+
+</main>
+<!-- /main column -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+</div> <!-- /content -->
+
+
+
+
+</body></html>

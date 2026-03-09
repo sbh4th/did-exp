@@ -397,44 +397,382 @@ weight_df %>%
 
 The correlation between a county's TWFE weight and its true treatment effect is **`r round(cor(weight_df$weight, weight_df$att), 3)`**. The estimator is nearly perfectly designed to discount large effects and amplify small ones. This is not an unlucky simulation draw — it follows directly from variance weighting combined with a dose-response that is decreasing in $d$.
 
+# Scenario 4: Always-On Treatment — No Post-Period
+
+Scenarios 1–3 all assumed a clean *differential exposure design*: a policy event occurs, it "activates" a fixed county-level dose $D_i$, and we can form the $D_i \cdot \text{Post}_t$ regressor. Most ambient PM$_{2.5}$ research lacks this structure. There is no event, no "before the dose." PM$_{2.5}$ varies continuously across both units and time, and every county is exposed in every year.
+
+The canonical always-on regression is:
+
+$$Y_{it} = \alpha_i + \lambda_t + \beta^{TWFE} D_{it} + \varepsilon_{it}$$
+
+where $D_{it}$ is now time-varying. After removing unit and time fixed effects, TWFE identifies off **within-unit, within-year** variation in PM$_{2.5}$: year-to-year fluctuations around each county's mean. The question is: what drives those fluctuations, and is that variation exogenous?
+
+For ambient PM$_{2.5}$, the answer is almost certainly no. Year-to-year variation within a county reflects meteorology (cold winters increase heating demand and particle emissions), economic cycles (recessions reduce industrial output and thus PM$_{2.5}$), and wildfire activity — all of which also affect health outcomes through pathways independent of PM$_{2.5}$. TWFE cannot separate the causal PM$_{2.5}$ effect from these simultaneous influences.
+
+## DGP
+
+The true causal response is $\tau = 0.5$ (each µg/m³ increases the mortality rate by 0.5 units). An unobserved economic activity factor $C_{it}$ follows a persistent AR(1) process and simultaneously:
+
+- **Drives PM$_{2.5}$ upward**: higher economic activity → more industrial output → more pollution.
+- **Drives mortality downward**: higher economic activity → better incomes, healthcare access, nutrition → lower mortality, independently of pollution.
+
+$$D_{it} = \mu_i + C_{it} + u_{it}, \qquad C_{it} = 0.9\,C_{i,t-1} + \eta_{it},\quad \eta \sim \mathcal{N}(0,\, 0.7^2)$$
+
+$$Y_{it} = \alpha_i + \lambda_t + 0.5\,D_{it} + (-2)\,C_{it} + \varepsilon_{it}$$
+
+$u_{it} \sim \mathcal{N}(0,\, 1.5^2)$ is exogenous weather-driven noise. The persistence $\rho = 0.9$ means the economic factor moves slowly — it dominates the *level* of PM$_{2.5}$ within a county but contributes only modestly to year-to-year *changes* (since $\text{Var}(\Delta C) = 2\sigma_\eta^2/(1+\rho) \approx 0.52$, versus $\text{Var}(\Delta u) = 2\sigma_u^2 = 4.5$).
+
+The TWFE bias formula for this DGP is:
+
+$$\text{plim}(\hat\beta^{TWFE}) = \tau + \delta \cdot \underbrace{\frac{\widetilde{\text{Var}}(C)}{\widetilde{\text{Var}}(C) + \widetilde{\text{Var}}(u)}}_{R^2_C \approx 0.26} \approx 0.5 + (-2)(0.26) = 0.0$$
+
+where $\widetilde{\text{Var}}(\cdot)$ denotes within-unit, within-time variance. TWFE is predicted to give approximately zero — effectively declaring PM$_{2.5}$ to have no health effect.
+
+## Results
+
+```{r scenario4, message=FALSE, warning=FALSE}
+#| fig-width: 10
+#| fig-height: 4
+
+set.seed(123)
+N_ao <- 500; T_ao <- 10; tau_ao <- 0.5; delta_ao <- -2
+rho_ao <- 0.9; s_eta <- 0.7; s_u <- 1.5
+
+alpha_ao <- rnorm(N_ao, 50, 5)
+mu_ao    <- runif(N_ao, 5, 15)
+lambda_ao <- seq(0, -(T_ao - 1) * 0.3, by = -0.3)
+
+sigma_C_ao <- s_eta / sqrt(1 - rho_ao^2)
+C_mat <- matrix(NA_real_, N_ao, T_ao)
+C_mat[, 1] <- rnorm(N_ao, 0, sigma_C_ao)
+for (t in 2:T_ao) C_mat[, t] <- rho_ao * C_mat[, t-1] + rnorm(N_ao, 0, s_eta)
+
+panel_ao <- expand_grid(unit = 1:N_ao, year = 1:T_ao) %>%
+  mutate(
+    alpha  = alpha_ao[unit],
+    mu     = mu_ao[unit],
+    lambda = lambda_ao[year],
+    C      = C_mat[cbind(unit, year)],
+    u      = rnorm(n(), 0, s_u),
+    D      = mu + C + u,
+    Y      = alpha + lambda + tau_ao * D + delta_ao * C + rnorm(n(), 0, 2)
+  )
+
+# Three estimators
+beta_twfe_ao   <- unname(coef(feols(Y ~ D     | unit + year, panel_ao, warn = FALSE))[1])
+beta_oracle_ao <- unname(coef(feols(Y ~ D + C | unit + year, panel_ao, warn = FALSE))["D"])
+
+# Within-unit, within-time residuals for plotting
+Ytilde <- resid(feols(Y ~ 0 | unit + year, panel_ao, warn = FALSE))
+Dtilde <- resid(feols(D ~ 0 | unit + year, panel_ao, warn = FALSE))
+Ctilde <- resid(feols(C ~ 0 | unit + year, panel_ao, warn = FALSE))
+
+samp <- tibble(Ytilde, Dtilde, Ctilde) %>% slice_sample(n = 3000)
+
+# Panel A: The direct confounding path: C̃ → Ỹ
+pA4 <- samp %>%
+  ggplot(aes(x = Ctilde, y = Ytilde)) +
+  geom_point(alpha = 0.2, size = 0.5, color = "grey50") +
+  geom_smooth(method = "lm", color = "#E41A1C", se = FALSE, linewidth = 1.1) +
+  annotate("text", x = -3.5, y = 12,
+           label = sprintf("slope ≈ %.1f\n(better economy\n→ lower mortality)", delta_ao),
+           color = "#E41A1C", size = 3.2, hjust = 0) +
+  labs(x = "Economic factor C̃ (within-unit demeaned)",
+       y = "Mortality Ỹ",
+       title = "A. Confounder acts directly on health",
+       subtitle = "Better economy → more PM₂.₅ AND better health")
+
+# Panel B: D̃ → Ỹ — what TWFE regresses
+pB4 <- samp %>%
+  ggplot(aes(x = Dtilde, y = Ytilde)) +
+  geom_point(alpha = 0.2, size = 0.5, color = "grey50") +
+  geom_smooth(method = "lm", color = "#E41A1C", se = FALSE, linewidth = 1.1) +
+  geom_abline(intercept = 0, slope = tau_ao, linetype = "dashed",
+              color = "#377EB8", linewidth = 1.1) +
+  annotate("text", x = -5, y = 11,
+           label = sprintf("TWFE slope = %.3f\n(≈ no effect)", beta_twfe_ao),
+           color = "#E41A1C", size = 3.2, hjust = 0) +
+  annotate("text", x = 3.5, y = -9,
+           label = sprintf("True τ = %.1f", tau_ao),
+           color = "#377EB8", size = 3.2, hjust = 1) +
+  labs(x = "PM₂.₅ D̃ (within-unit demeaned)",
+       y = "Mortality Ỹ",
+       title = "B. TWFE regression of Ỹ on D̃",
+       subtitle = "Confounding nearly cancels the true PM₂.₅ effect")
+
+# Panel C: Estimator comparison
+tibble(
+  Estimator = factor(
+    c("True τ", "Oracle TWFE\n(C known)", "TWFE\n(C omitted)"),
+    levels = c("True τ", "Oracle TWFE\n(C known)", "TWFE\n(C omitted)")
+  ),
+  Estimate = c(tau_ao, beta_oracle_ao, beta_twfe_ao),
+  Type     = c("True", "Oracle", "Biased")
+) %>%
+  ggplot(aes(x = Estimator, y = Estimate, fill = Type)) +
+  geom_col(width = 0.5) +
+  geom_hline(yintercept = tau_ao, linetype = "dashed", linewidth = 0.8) +
+  geom_hline(yintercept = 0, linewidth = 0.4) +
+  scale_fill_manual(
+    values = c("True" = "#377EB8", "Oracle" = "#4DAF4A", "Biased" = "#E41A1C"),
+    guide  = "none"
+  ) +
+  annotate("text", x = 0.7, y = tau_ao + 0.04, label = "True τ = 0.5",
+           size = 3.2, hjust = 0) +
+  labs(x = NULL, y = "Estimate",
+       title = "C. Estimator comparison") -> pC4
+
+(pA4 | pB4 | pC4) +
+  plot_annotation(
+    title = "Scenario 4: Always-On Treatment with Time-Varying Confounding",
+    subtitle = sprintf(
+      "True τ = %.1f;   TWFE (no confounder control) = %.3f;   Oracle TWFE = %.3f",
+      tau_ao, beta_twfe_ao, beta_oracle_ao
+    )
+  )
+```
+
+The TWFE estimate is **`r round(beta_twfe_ao, 3)`** — virtually zero — despite a true causal effect of 0.5. The confounding mechanism is visible in panels A and B. Panel A shows that the economic factor $C_{it}$ directly lowers mortality (better economy → better health), with a within-unit slope close to $\delta = -2$. Panel B shows that when PM$_{2.5}$ is high (positive $\tilde{D}_{it}$), mortality is also sometimes lower — because high PM$_{2.5}$ years are often high-$C$ years (economic booms drive both). The two effects nearly cancel: TWFE sees PM$_{2.5}$ increasing and mortality *not* increasing, and concludes (wrongly) that PM$_{2.5}$ has no effect.
+
+Crucially, this failure has nothing to do with the weighting problems in Scenarios 1–3. Parallel trends is irrelevant here: the "treatment" $D_{it}$ is always on. There is no pre-period against which to validate trends, and no binary "treated/untreated" state to validate. The problem is purely time-varying confounding — the same thing that drives within-unit PM$_{2.5}$ changes also directly drives health outcomes — and TWFE has no mechanism to separate these.
+
+# Scenario 5: The Quasi-Stayer Approach
+
+## Operationalizing "Quasi-Stayers" for PM$_{2.5}$
+
+De Chaisemartin, D'Haultfoeuille & Vazquez-Bare (2024) proposed an estimator for always-on continuous treatments built around the idea of **stayers** — units whose treatment doesn't change between consecutive periods. Since no county has literally the same PM$_{2.5}$ in two consecutive years, the practical extension is **quasi-stayers**: counties whose year-to-year PM$_{2.5}$ change is small enough to be treated as effectively stable.
+
+The key idea: if a quasi-stayer's PM$_{2.5}$ barely changed, its observed health-outcome change approximates the *counterfactual trend* — what would have happened to a switcher's health had its PM$_{2.5}$ also not changed. Comparing switchers' actual outcome changes to this counterfactual, normalized by the PM$_{2.5}$ change, yields an estimate of the causal response.
+
+**Threshold choice.** "Small" requires a threshold $\epsilon$. The cleanest approach is percentile-based: county-year $(i, t)$ is a quasi-stayer if $|\Delta D_{it}|$ falls in the bottom $q$-th percentile of the distribution of $|\Delta D|$ in year $t$. This self-scales across years regardless of units or dispersion. For PM$_{2.5}$, the bottom 20th percentile ($q = 0.20$) means counties that changed their annual mean concentration by less than roughly 0.3–0.5 µg/m³ year-to-year.
+
+## The Estimator
+
+For each consecutive period pair $(t-1,\, t)$:
+
+1. **Classify** county-years: quasi-stayer if $|\Delta D_{it}| \leq \epsilon_t$; switcher otherwise.
+2. **Counterfactual model**: fit $\Delta Y \sim D_{i,t-1}$ within quasi-stayers. The regressor $D_{i,t-1}$ is the *baseline dose* — conditioning on it implements de Chaisemartin's parallel trends assumption *conditional on starting dose*.
+3. **Predict** each switcher's counterfactual $\widehat{\Delta Y}^{cf}$ from the quasi-stayer model evaluated at the switcher's $D_{i,t-1}$.
+4. **Causal response** per switcher: $(\Delta Y_{it} - \widehat{\Delta Y}^{cf}_{it}) / \Delta D_{it}$.
+5. **Aggregate** across switchers, weighting by $|\Delta D_{it}|^2$ (AOSS: average of switchers' slopes): $$\widehat{AOSS} = \frac{\sum_{i,t\,:\,\text{switcher}} (\Delta Y_{it} - \widehat{\Delta Y}^{cf}_{it})\cdot\Delta D_{it}}{\sum_{i,t\,:\,\text{switcher}} (\Delta D_{it})^2}$$
+
+The weighting by $\Delta D_{it}^2$ gives more influence to switchers with larger dose changes — those providing the strongest signal about the slope.
+
+## Why Quasi-Stayers Are Less Biased Here
+
+In our DGP, PM$_{2.5}$ changes follow:
+
+$$\Delta D_{it} = \Delta C_{it} + \Delta u_{it}$$
+
+The exogenous noise $u_{it}$ is i.i.d., so $\text{Var}(\Delta u) = 2\sigma_u^2 = 4.5$. The economic factor is highly persistent ($\rho = 0.9$), so year-to-year changes in $C$ are small: $\text{Var}(\Delta C) = 2\sigma_\eta^2/(1+\rho) \approx 0.52$. Roughly **90% of year-to-year PM$_{2.5}$ variation is driven by the exogenous noise**, even though the economic factor dominates the *level*.
+
+The quasi-stayer's plim has the same structural form as TWFE, but the relevant variance ratio is now over first differences rather than levels:
+
+$$\text{plim}(\widehat{AOSS}) = \tau + \delta \cdot \underbrace{\frac{\text{Var}(\Delta C)}{\text{Var}(\Delta C) + \text{Var}(\Delta u)}}_{R^2_{qs} \approx 0.10} \approx 0.5 + (-2)(0.10) = 0.30$$
+
+The confounded share drops from $R^2_C \approx 0.26$ (levels, used by TWFE) to $R^2_{qs} \approx 0.10$ (changes, used by quasi-stayer) — a 60% reduction in bias — because the persistent economic factor contributes far less to year-to-year fluctuations than to long-run county levels.
+
+## Results
+
+```{r scenario5, message=FALSE, warning=FALSE}
+#| fig-width: 10
+#| fig-height: 8
+
+# First differences from panel_ao
+diffs_ao <- panel_ao %>%
+  arrange(unit, year) %>%
+  group_by(unit) %>%
+  mutate(
+    dD    = D - lag(D),
+    dY    = Y - lag(Y),
+    dC    = C - lag(C),   # latent; used to colour points, not in estimator
+    D_lag = lag(D)
+  ) %>%
+  filter(!is.na(dD)) %>%
+  ungroup()
+
+# Quasi-stayer estimator
+qs_est <- function(df, q = 0.20) {
+  df %>%
+    group_by(year) %>%
+    mutate(
+      eps   = quantile(abs(dD), q),
+      is_qs = abs(dD) <= eps
+    ) %>%
+    group_modify(function(d, ...) {
+      qs <- filter(d,  is_qs)
+      sw <- filter(d, !is_qs)
+      if (nrow(qs) < 10 | nrow(sw) < 10) return(tibble(est = NA_real_))
+      cf <- lm(dY ~ D_lag, data = qs)
+      sw <- mutate(sw, ce = dY - predict(cf, newdata = sw))
+      tibble(est = sum(sw$ce * sw$dD) / sum(sw$dD^2))
+    }) %>%
+    pull(est) %>%
+    mean(na.rm = TRUE)
+}
+
+beta_qs <- qs_est(diffs_ao, q = 0.20)
+
+# Mark quasi-stayer status for a single year (for plotting)
+yr_plot <- 5L   # pick one representative year-pair
+diffs_yr <- diffs_ao %>%
+  filter(year == yr_plot) %>%
+  mutate(
+    eps   = quantile(abs(dD), 0.20),
+    is_qs = abs(dD) <= eps
+  )
+
+# Panel A: ΔD vs ΔY scatter with QS/switcher colouring
+pA5 <- diffs_yr %>%
+  ggplot(aes(x = dD, y = dY, color = is_qs)) +
+  geom_point(alpha = 0.35, size = 0.9) +
+  # QS regression line: the counterfactual trend
+  geom_smooth(data = filter(diffs_yr,  is_qs), method = "lm",
+              aes(x = dD, y = dY), inherit.aes = FALSE,
+              color = "grey30", se = TRUE, linewidth = 1.1,
+              fill = "grey70", alpha = 0.3) +
+  # TWFE slope (biased)
+  geom_smooth(method = "lm", color = "#E41A1C", se = FALSE,
+              linewidth = 1.1, linetype = "dashed") +
+  scale_color_manual(
+    values = c("TRUE" = "grey50", "FALSE" = "#377EB8"),
+    labels = c("TRUE" = "Quasi-stayer (|ΔD| ≤ ε)", "FALSE" = "Switcher (|ΔD| > ε)"),
+    name   = ""
+  ) +
+  annotate("text", x = -5, y = 14,
+           label = "QS trend\n(counterfactual)",
+           color = "grey30", size = 3) +
+  annotate("text", x = 3, y = -10,
+           label = sprintf("TWFE slope = %.3f", beta_twfe_ao),
+           color = "#E41A1C", size = 3) +
+  labs(x = "ΔD (PM₂.₅ change, µg/m³)",
+       y = "ΔY (mortality change)",
+       title = "A. QS counterfactual vs TWFE slope",
+       subtitle = "Grey line = quasi-stayer counterfactual trend (near-flat)") +
+  theme(legend.position = "bottom",
+        legend.text = element_text(size = 9))
+
+# Panel B: Sensitivity to threshold q
+sens_df <- tibble(
+  q   = seq(0.10, 0.40, by = 0.05),
+  est = map_dbl(q, ~qs_est(diffs_ao, q = .x))
+)
+
+pB5 <- sens_df %>%
+  ggplot(aes(x = q, y = est)) +
+  geom_line(color = "#377EB8", linewidth = 1.1) +
+  geom_point(color = "#377EB8", size = 2) +
+  geom_hline(yintercept = tau_ao,     linetype = "dashed", color = "grey30") +
+  geom_hline(yintercept = beta_twfe_ao, linetype = "dotted", color = "#E41A1C",
+             linewidth = 0.8) +
+  annotate("text", x = 0.39, y = tau_ao + 0.02,
+           label = "True τ = 0.5", size = 3, hjust = 1, color = "grey30") +
+  annotate("text", x = 0.39, y = beta_twfe_ao - 0.03,
+           label = sprintf("TWFE = %.3f", beta_twfe_ao),
+           size = 3, hjust = 1, color = "#E41A1C") +
+  scale_x_continuous(labels = scales::percent) +
+  labs(x = "Quasi-stayer threshold (percentile of |ΔD|)",
+       y = "QS estimate",
+       title = "B. Sensitivity to threshold choice",
+       subtitle = "Estimate stable across q — not an artefact of the threshold")
+
+# Panel C: Side-by-side comparison of all estimators for this DGP
+tibble(
+  Estimator = factor(
+    c("True τ", "Oracle TWFE\n(C known)", "Quasi-stayer\n(q = 0.20)", "TWFE\n(C omitted)"),
+    levels = c("True τ", "Oracle TWFE\n(C known)", "Quasi-stayer\n(q = 0.20)", "TWFE\n(C omitted)")
+  ),
+  Estimate = c(tau_ao, beta_oracle_ao, beta_qs, beta_twfe_ao),
+  Type = c("True", "Oracle", "QS", "Biased")
+) %>%
+  ggplot(aes(x = Estimator, y = Estimate, fill = Type)) +
+  geom_col(width = 0.55) +
+  geom_hline(yintercept = tau_ao, linetype = "dashed", linewidth = 0.8) +
+  geom_hline(yintercept = 0, linewidth = 0.4) +
+  scale_fill_manual(
+    values = c("True" = "#377EB8", "Oracle" = "#4DAF4A",
+               "QS" = "#FF7F00", "Biased" = "#E41A1C"),
+    guide = "none"
+  ) +
+  annotate("text", x = 0.7, y = tau_ao + 0.03,
+           label = "True τ = 0.5", size = 3, hjust = 0) +
+  labs(x = NULL, y = "Estimate",
+       title = "C. All estimators compared") -> pC5
+
+(pA5 | pB5 | pC5) +
+  plot_annotation(
+    title = "Scenario 5: Quasi-Stayer Estimator",
+    subtitle = sprintf(
+      "True τ = %.1f;   TWFE = %.3f;   Quasi-stayer (q=0.20) = %.3f;   Oracle = %.3f",
+      tau_ao, beta_twfe_ao, beta_qs, beta_oracle_ao
+    )
+  )
+```
+
+The quasi-stayer estimate is **`r round(beta_qs, 3)`** — substantially closer to the truth (0.5) than TWFE (`r round(beta_twfe_ao, 3)`), though still biased. The bias ratio is about `r round(abs(beta_qs - tau_ao) / abs(beta_twfe_ao - tau_ao), 2)` — quasi-stayer retains about `r round(abs(beta_qs - tau_ao) / abs(beta_twfe_ao - tau_ao) * 100)`% of TWFE's bias. Panel A shows why: the quasi-stayer trend line (grey, estimated within counties with near-zero PM$_{2.5}$ changes) is nearly flat and provides a valid counterfactual trend for switchers; by subtracting it before dividing by $\Delta D$, the quasi-stayer estimator partially decouples the PM$_{2.5}$ effect from the economic confound.
+
+Panel B shows that the estimate is **stable across all threshold choices** — from the 10th to 40th percentile the estimate ranges only from `r round(min(sens_df$est), 3)` to `r round(max(sens_df$est), 3)`. This stability is reassuring: the result is not an artefact of a particular cutoff.
+
+## Limits of the Quasi-Stayer Approach
+
+The quasi-stayer estimator reduces but does not eliminate the confounding bias. Its residual bias ($\approx$ `r round(abs(beta_qs - tau_ao), 2)`) reflects the share of year-to-year PM$_{2.5}$ variation that is still driven by the economic factor ($R^2_{qs} \approx 0.10$). More importantly, the identifying assumption is:
+
+> *Counties with similar baseline PM$_{2.5}$ whose annual concentration barely changed would have experienced the same mortality trend as counties whose concentration changed substantially, had those counties also not changed.*
+
+This fails whenever the factor that caused the PM$_{2.5}$ change is itself directly affecting health. In our DGP the economic factor drives both PM$_{2.5}$ changes and health, so the assumption is technically violated — only the high persistence of $C$ (which reduces $R^2_{qs}$ relative to $R^2_C$) limits the damage. In settings where PM$_{2.5}$ changes are driven primarily by transient weather shocks (which also directly affect health), the quasi-stayer may perform no better than TWFE.
+
+The assumption is, however, **partially testable**: using a period earlier than $t-1$ as a placebo, one can check whether quasi-stayers and switchers had differential outcome trends even in a period when PM$_{2.5}$ did not change. If the identifying assumption holds, the quasi-stayer estimator should return approximately zero for placebo treatment changes.
+
 # Summary
 
 ```{r summary_table}
 tibble(
   Scenario        = c("1: Linear τ(d) = 0.5d",
                       "2: Concave τ(d) = 6(√(d/5)−1)",
-                      "3: Declining τ(d) = 20exp(−d/4)"),
-  `D distribution` = c("Uniform(5, 20)",
-                        "Uniform(5, 20)",
-                        "Bimodal N(5,1) / N(17,1)"),
-  `TWFE`          = c(round(beta1, 2), round(beta2, 2), round(beta3, 2)),
-  `True ATT°`     = c(round(att1_avg, 2), round(att2_avg, 2), round(att3_avg, 2)),
-  `Failure mode`  = c("Different estimand (slope ≠ level effect)",
-                      "Wrong magnitude (variance-weighted slope underestimates concave ATT)",
-                      "Wrong sign")
+                      "3: Declining τ(d) = 20exp(−d/4)",
+                      "4: Always-on + econ. confounder",
+                      "5: Quasi-stayer (q = 0.20)"),
+  Setting         = c(rep("Differential exposure (Post exists)", 3),
+                      rep("Always-on (no Post)", 2)),
+  `PT holds?`     = c("Yes", "Yes", "Yes", "No", "Partially"),
+  `TWFE`          = c(round(beta1, 2), round(beta2, 2), round(beta3, 2),
+                      round(beta_twfe_ao, 2), round(beta_twfe_ao, 2)),
+  `Alt. estimate` = c(rep("—", 3), round(beta_oracle_ao, 2), round(beta_qs, 2)),
+  `True`          = c(round(att1_avg, 2), round(att2_avg, 2), round(att3_avg, 2),
+                      tau_ao, tau_ao),
+  `Failure mode`  = c("Slope ≠ level effect",
+                      "Variance-weighting underestimates concave ATT",
+                      "Wrong sign (declining ATT × bimodal D)",
+                      "Time-varying confounding cancels true effect",
+                      "Bias reduced ~60% vs TWFE; not eliminated")
 ) %>%
-  kbl(align = "llrrl",
-      col.names = c("Scenario", "D distribution", "TWFE", "True ATT°", "Failure mode")) %>%
+  kbl(align = "lllrrrl",
+      col.names = c("Scenario", "Setting", "PT holds?", "TWFE",
+                    "Alt.", "True", "Failure mode")) %>%
   kable_styling(bootstrap_options = c("striped", "hover"), full_width = FALSE) %>%
-  row_spec(3, bold = TRUE, color = "white", background = "#C0392B")
+  row_spec(3, bold = TRUE, color = "white", background = "#C0392B") %>%
+  row_spec(4, bold = TRUE, color = "white", background = "#8B0000") %>%
+  row_spec(5, bold = TRUE, background = "#FFF3CD")
 ```
 
 ## What TWFE Is (and Isn't) Doing
 
-Across all three scenarios, parallel trends holds by construction. TWFE is not failing because of pre-trend violations or omitted variable bias. It is failing because of *what it estimates*. In the two-period continuous-treatment case:
+Across Scenarios 1–3, parallel trends holds by construction. TWFE fails because of *what it estimates* rather than because of assumption violations. In the two-period differential exposure case:
 
 $$\hat\beta^{TWFE} \xrightarrow{p} \underbrace{\frac{\text{Cov}(D_i,\; \tau(D_i))}{\text{Var}(D_i)}}_{\text{what TWFE estimates}} \quad \neq \quad \underbrace{\mathbb{E}[\tau(D_i)]}_{\text{average ATT}}$$
 
-The numerator $\text{Cov}(D_i, \tau(D_i))$ measures whether high-dose units have larger treatment effects than low-dose units — a fact about the *slope* of the dose-response, not about its level. When the dose-response is decreasing in dose (Scenario 3), this covariance is negative and TWFE returns a negative number even though every unit's treatment effect is positive.
+The numerator is the covariance between dose and dose-response — a slope, not a level. These two coincide only when $\tau(d)$ is linear in $d$, and even then TWFE recovers the marginal causal response per unit of dose rather than the average level effect. When the dose-response is decreasing in dose (Scenario 3), the covariance is negative and TWFE reverses sign.
 
-Note also that these pathologies arise with just **two time periods** — unlike the staggered binary treatment problems, which require multiple periods and staggered adoption. The problems here are fundamentally about the continuous treatment distribution and dose-response shape, not about timing.
+In Scenarios 4–5 the failure mode is different: the "treatment" is always on, there is no untreated state, and the within-unit variation that TWFE exploits is contaminated by time-varying confounders. Parallel trends cannot be invoked or tested in the usual way, because there is no pre-treatment period to validate.
+
+Note that the Scenarios 1–3 pathologies arise with just **two time periods** — unlike staggered binary treatment problems, which require multiple periods. The problems are about the continuous treatment distribution and dose-response shape, not timing.
 
 ## Implications
 
-Three broader points:
+**First**, TWFE with a continuous treatment in the differential exposure design implicitly runs a binary DiD: above-average-dose units as "treated," below-average-dose as "control." Whether this is scientifically appropriate depends on the dose-response shape — and there is no test that can reveal this without knowing the truth.
 
-**First**, TWFE with a continuous treatment is implicitly running a binary DiD: above-average-dose units are "treated" and below-average-dose units are "control." Whether this is the right comparison depends entirely on the dose-response shape and the research question. In most cases it is not.
+**Second**, in the always-on setting, TWFE uses within-unit year-to-year variation in PM$_{2.5}$. Because this variation is driven partly by the same factors (weather, economic cycles) that also affect health outcomes, the identifying assumption is almost certainly violated. Pre-trend tests are not available to diagnose this.
 
-**Second**, the problems are not detectable from pre-trend tests. Parallel trends is satisfied in all three simulations by construction. Pre-trend tests would pass in all cases. The bias is entirely post-treatment, arising from how TWFE weights the post-period outcome changes — and pre-trend tests say nothing about this.
+**Third**, the quasi-stayer approach exploits a better-justified source of variation — counties with near-zero PM$_{2.5}$ changes as controls — and can reduce bias substantially when the confounder is persistent (moves slowly relative to year-to-year changes). But it is not a magic fix: if the confounder drives year-to-year PM$_{2.5}$ changes, quasi-stayer shares TWFE's problem. The assumption is more transparent and partially testable via placebo pre-period regressions.
 
-**Third**, for ambient PM$_{2.5}$ (where there is no policy event, no fixed $D_i \cdot \text{Post}_t$ to construct, and no $D = 0$ comparison group), the problems are even deeper. The differential exposure design that frames these scenarios does not apply. The quasi-stayers approach of de Chaisemartin et al. (2024) is the most credible DiD-type solution for always-on continuous treatments, but it requires counties with near-zero year-to-year PM$_{2.5}$ changes and is not yet available in a turnkey package. For most ambient PM$_{2.5}$ health effect research, instrumental variable methods — wind direction, wildfire smoke plumes, regulatory nonattainment thresholds — remain the most defensible identification strategy.
+**The honest bottom line**: for ambient PM$_{2.5}$ health effect estimation, instrumental variable methods — wind direction, wildfire smoke plumes, regulatory nonattainment thresholds — remain the most defensible identification strategy. DiD-type methods (both standard TWFE and quasi-stayer variants) can be made to work under carefully defended parallel trends or quasi-stayer assumptions, but neither assumption is likely to hold without question for a pollutant whose variation is so tightly linked to the same economic and meteorological forces that determine population health.
